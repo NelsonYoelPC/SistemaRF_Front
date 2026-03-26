@@ -1,0 +1,25 @@
+* {
+    box-sizing: border-box;
+}
+
+:host {
+    display: block;
+    height: 100vh;
+}
+
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    background: #f1f5f9;
+}
+
+.main-content {
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    overflow: auto;
+}
+
+.main-content-wrapper {
+    padding: 24px;
+}

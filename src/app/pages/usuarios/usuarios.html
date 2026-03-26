@@ -1,0 +1,362 @@
+<div class="usuarios-page">
+    <div class="page-header">
+        <div>
+            <h1>Gestión de usuarios</h1>
+            <p>Administración de usuarios registrados y accesos al sistema</p>
+        </div>
+
+        <button class="btn-primary" type="button" (click)="openUsuarioModal()">
+            <i class="bi bi-plus-circle"></i>
+            <span>Nuevo usuario</span>
+        </button>
+    </div>
+
+    <div class="filters-card">
+        <div class="filters-grid">
+            <div class="form-group form-group-search">
+                <label for="buscar">Buscar</label>
+                <input id="buscar" type="text" placeholder="Buscar por nombres, documento, usuario o correo"
+                    [(ngModel)]="filtroBusqueda" (input)="applyFilters()" />
+            </div>
+
+            <div class="form-group">
+                <label for="estado">Estado</label>
+                <select id="estado" [(ngModel)]="filtroEstado" (change)="applyFilters()">
+                    <option value="">Todos</option>
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="acceso">Acceso al sistema</label>
+                <select id="acceso" [(ngModel)]="filtroAcceso" (change)="applyFilters()">
+                    <option value="">Todos</option>
+                    <option value="1">Con acceso</option>
+                    <option value="0">Sin acceso</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="rol">Rol</label>
+                <select id="rol" [(ngModel)]="filtroRol" (change)="applyFilters()">
+                    <option value="">Todos</option>
+                    <option value="ADMINISTRADOR">Administrador</option>
+                    <option value="JEFE_SEGURIDAD">Jefe de Seguridad</option>
+                    <option value="ANALISTA_SEGURIDAD">Analista de Seguridad</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn-secondary" type="button" (click)="clearFilters()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    <span>Limpiar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (loadError) {
+    <div class="table-card">
+        <div class="alert-error">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>{{ loadError }}</span>
+        </div>
+    </div>
+    }
+
+    <div class="table-card">
+        <div class="table-header">
+            <h2>Listado de usuarios</h2>
+            <span class="table-count">Total: {{ totalUsuarios }}</span>
+        </div>
+        <div style="margin-bottom: 12px; font-size: 14px;">
+            usuarios: {{ usuarios.length }} |
+            filtrados: {{ usuariosFiltrados.length }} |
+            paginados: {{ usuariosPaginados.length }} |
+            loading: {{ loadingUsuarios }}
+        </div>
+
+        <div class="table-responsive">
+            <table class="usuarios-table">
+                <thead>
+                    <tr>
+                        <th>Nombre completo</th>
+                        <th>Documento</th>
+                        <th>Teléfono</th>
+                        <th>Cargo</th>
+                        <th>Usuario</th>
+                        <th>Correo</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!loadingUsuarios && usuariosPaginados.length > 0) {
+                    @for (usuario of usuariosPaginados; track usuario.usuario_id) {
+                    <tr>
+                        <td>{{ usuario.nombre_completo }}</td>
+                        <td>{{ getDocumento(usuario) }}</td>
+                        <td>{{ usuario.telefono || 'No registrado' }}</td>
+                        <td>{{ usuario.cargo || 'No registrado' }}</td>
+                        <td>
+                            @if (usuario.username) {
+                            <span class="text-strong">{{ usuario.username }}</span>
+                            } @else {
+                            <span class="text-muted">Sin acceso</span>
+                            }
+                        </td>
+                        <td>
+                            @if (usuario.email) {
+                            {{ usuario.email }}
+                            } @else {
+                            <span class="text-muted">No aplica</span>
+                            }
+                        </td>
+                        <td>
+                            @if (usuario.rol_descripcion) {
+                            <span class="role-badge">{{ usuario.rol_descripcion }}</span>
+                            } @else {
+                            <span class="text-muted">No aplica</span>
+                            }
+                        </td>
+                        <td>
+                            <span class="status-badge" [class.status-active]="usuario.estado_usuario"
+                                [class.status-inactive]="!usuario.estado_usuario">
+                                {{ getEstadoLabel(usuario.estado_usuario) }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <div class="table-actions">
+                                <button class="action-btn action-btn-view" type="button" (click)="verUsuario(usuario)"
+                                    title="Ver detalle">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+
+                                <button class="action-btn action-btn-edit" type="button"
+                                    (click)="editarUsuario(usuario)" title="Editar usuario">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                <button class="action-btn action-btn-toggle" type="button"
+                                    (click)="toggleEstado(usuario)"
+                                    [title]="usuario.estado_usuario ? 'Desactivar' : 'Activar'">
+                                    <i class="bi"
+                                        [ngClass]="usuario.estado_usuario ? 'bi-toggle-on' : 'bi-toggle-off'"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    }
+                    } @else if (!loadingUsuarios) {
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            No se encontraron usuarios registrados.
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (!loadingUsuarios && totalPages > 0) {
+        <div class="pagination-bar">
+            <button class="pagination-btn" type="button" (click)="previousPage()" [disabled]="currentPage === 1">
+                Anterior
+            </button>
+
+            <div class="pagination-pages">
+                @for (page of pages; track page) {
+                <button class="pagination-btn page-number" type="button"
+                    [class.page-number-active]="page === currentPage" (click)="goToPage(page)">
+                    {{ page }}
+                </button>
+                }
+            </div>
+
+            <button class="pagination-btn" type="button" (click)="nextPage()" [disabled]="currentPage === totalPages">
+                Siguiente
+            </button>
+        </div>
+        }
+    </div>
+</div>
+
+@if (showUsuarioModal) {
+<div class="modal-backdrop" (click)="closeUsuarioModal()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h2>Nuevo usuario</h2>
+                <p>Registro de datos personales, acceso al sistema y foto principal</p>
+            </div>
+
+            <button class="modal-close" type="button" (click)="closeUsuarioModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <form class="modal-body" [formGroup]="usuarioForm" (ngSubmit)="saveUsuario()">
+            @if (saveError) {
+            <div class="alert-error">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span>{{ saveError }}</span>
+            </div>
+            }
+
+            <div class="modal-section">
+                <h3>Datos del usuario</h3>
+
+                <div class="modal-grid">
+                    <div class="form-group">
+                        <label for="nombres">Nombres</label>
+                        <input id="nombres" type="text" formControlName="nombres" />
+                        @if (isInvalid('nombres')) {
+                        <small class="error-text">El campo nombres es obligatorio.</small>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label for="apellido_paterno">Apellido paterno</label>
+                        <input id="apellido_paterno" type="text" formControlName="apellido_paterno" />
+                        @if (isInvalid('apellido_paterno')) {
+                        <small class="error-text">El apellido paterno es obligatorio.</small>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label for="apellido_materno">Apellido materno</label>
+                        <input id="apellido_materno" type="text" formControlName="apellido_materno" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tipo_documento_modal">Tipo de documento</label>
+                        <select id="tipo_documento_modal" formControlName="tipo_documento">
+                            <option value="">Seleccione</option>
+                            @for (item of tiposDocumento; track item.value) {
+                            <option [value]="item.value">{{ item.label }}</option>
+                            }
+                        </select>
+                        @if (isInvalid('tipo_documento')) {
+                        <small class="error-text">Seleccione un tipo de documento.</small>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numero_documento">Número de documento</label>
+                        <input id="numero_documento" type="text" formControlName="numero_documento" />
+                        @if (isInvalid('numero_documento')) {
+                        <small class="error-text">El número de documento es obligatorio.</small>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label for="telefono_modal">Teléfono</label>
+                        <input id="telefono_modal" type="text" formControlName="telefono" />
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label for="direccion_modal">Dirección</label>
+                        <input id="direccion_modal" type="text" formControlName="direccion" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cargo_modal">Cargo</label>
+                        <input id="cargo_modal" type="text" formControlName="cargo" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="estado_modal">Estado</label>
+                        <select id="estado_modal" formControlName="estado">
+                            <option [ngValue]="true">Activo</option>
+                            <option [ngValue]="false">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-section">
+                <h3>Acceso al sistema</h3>
+
+                <div class="access-check">
+                    <input id="tiene_acceso" type="checkbox" formControlName="tiene_acceso" />
+                    <label for="tiene_acceso">Crear acceso al sistema</label>
+                </div>
+
+                <div class="modal-grid" [class.section-disabled]="!tieneAcceso">
+                    <div class="form-group">
+                        <label for="username_modal">Usuario</label>
+                        <input id="username_modal" type="text" formControlName="username" />
+                        @if (isInvalid('username')) {
+                        <small class="error-text">El usuario es obligatorio.</small>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email_modal">Correo</label>
+                        <input id="email_modal" type="email" formControlName="email" />
+                        @if (isInvalid('email')) {
+                        <small class="error-text">Ingrese un correo válido.</small>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password_modal">Contraseña</label>
+                        <input id="password_modal" type="password" formControlName="password" />
+                        @if (isInvalid('password')) {
+                        <small class="error-text">La contraseña debe tener al menos 8 caracteres.</small>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rol_modal">Rol</label>
+                        <select id="rol_modal" formControlName="role_id">
+                            <option value="">Seleccione</option>
+                            @for (rol of roles; track rol.value) {
+                            <option [value]="rol.value">{{ rol.label }}</option>
+                            }
+                        </select>
+                        @if (isInvalid('role_id')) {
+                        <small class="error-text">Seleccione un rol.</small>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-section">
+                <h3>Foto principal</h3>
+
+                <div class="photo-upload-box">
+                    @if (photoPreviewUrl) {
+                    <img [src]="photoPreviewUrl" alt="Vista previa" class="photo-preview" />
+                    } @else {
+                    <i class="bi bi-image"></i>
+                    }
+
+                    <p>
+                        {{ selectedPhotoName || 'Seleccione una imagen para la foto principal del usuario' }}
+                    </p>
+
+                    <label class="btn-secondary file-upload-button">
+                        <i class="bi bi-upload"></i>
+                        <span>Seleccionar foto</span>
+                        <input type="file" accept="image/*" (change)="onPhotoSelected($event)" hidden />
+                    </label>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" type="button" (click)="closeUsuarioModal()">
+                    Cancelar
+                </button>
+
+                <button class="btn-primary" type="submit" [disabled]="savingUsuario">
+                    <i class="bi bi-floppy"></i>
+                    <span>{{ savingUsuario ? 'Guardando...' : 'Guardar usuario' }}</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+}

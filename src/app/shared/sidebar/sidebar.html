@@ -1,0 +1,76 @@
+<aside class="sidebar" [class.sidebar-collapsed]="collapsed">
+    <div class="sidebar-header">
+        <div class="brand" *ngIf="!collapsed">
+            <div class="brand-logo">
+                <i class="bi bi-shield-lock-fill"></i>
+            </div>
+
+            <div class="brand-text">
+                <h1>SEGURIDAD CIUDADANA</h1>
+                <span>Sistema</span>
+            </div>
+        </div>
+
+        <button class="toggle-btn" type="button" (click)="toggleSidebar()">
+            <i class="bi" [ngClass]="collapsed ? 'bi-list' : 'bi-layout-sidebar-inset'"></i>
+        </button>
+    </div>
+
+    <div class="sidebar-body">
+        <ng-container *ngFor="let group of menuGroups; trackBy: trackByGroup">
+            <div class="group-title" *ngIf="!collapsed">
+                {{ group.title }}
+            </div>
+
+            <ul class="menu-list">
+                <li class="menu-item" *ngFor="let item of group.items; trackBy: trackByItem">
+
+                    <a *ngIf="!item.children?.length" class="menu-link" [routerLink]="item.route"
+                        routerLinkActive="menu-link-active" [routerLinkActiveOptions]="{ exact: true }">
+                        <div class="menu-left">
+                            <i [class]="item.icon"></i>
+                            <span *ngIf="!collapsed">{{ item.label }}</span>
+                        </div>
+                    </a>
+
+                    <button *ngIf="item.children?.length" type="button" class="menu-link menu-button"
+                        [class.menu-link-open]="isExpanded(item.id)"
+                        [class.menu-link-parent-active]="hasActiveChild(item)" (click)="toggleSubmenu(item)">
+                        <div class="menu-left">
+                            <i [class]="item.icon"></i>
+                            <span *ngIf="!collapsed">{{ item.label }}</span>
+                        </div>
+
+                        <i *ngIf="!collapsed" class="bi bi-chevron-down menu-chevron"
+                            [class.menu-chevron-rotated]="isExpanded(item.id)"></i>
+                    </button>
+
+                    <div *ngIf="item.children?.length && !collapsed" class="submenu-wrapper"
+                        [class.submenu-wrapper-open]="isExpanded(item.id)">
+                        <ul class="submenu-list">
+                            <li class="submenu-item" *ngFor="let child of item.children; trackBy: trackByItem">
+                                <a class="submenu-link" [routerLink]="child.route"
+                                    routerLinkActive="submenu-link-active" [routerLinkActiveOptions]="{ exact: true }">
+                                    <i [class]="child.icon"></i>
+                                    <span>{{ child.label }}</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                </li>
+            </ul>
+        </ng-container>
+    </div>
+
+    <div class="user-card" *ngIf="!collapsed">
+        <div class="user-avatar">
+            {{ sessionService.user.fullName.charAt(0) }}
+        </div>
+
+        <div class="user-info">
+            <div class="user-name">{{ sessionService.user.fullName }}</div>
+            <div class="user-role">{{ currentRoleLabel }}</div>
+        </div>
+    </div>
+</aside>
