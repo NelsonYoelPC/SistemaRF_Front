@@ -4,19 +4,30 @@
 
 :host {
     display: block;
-    height: 100vh;
+    min-height: 100vh;
+    background: #f1f5f9;
+
+    /* =========================================================
+       ESCALA GLOBAL DE LA APLICACIÓN
+       - 1    = tamaño normal
+       - 0.9  = similar a zoom 90%
+       - 0.8  = similar a zoom 80%
+       - Si luego deseas cambiar toda la app, modifica solo aquí
+       ========================================================= */
+    --app-scale: 0.9;
 }
 
 .app-layout {
     display: flex;
-    min-height: 100vh;
+    min-height: calc(100vh / var(--app-scale));
     background: #f1f5f9;
+    zoom: var(--app-scale);
 }
 
 .main-content {
     flex: 1;
     min-width: 0;
-    height: 100vh;
+    height: calc(100vh / var(--app-scale));
     overflow: auto;
 }
 

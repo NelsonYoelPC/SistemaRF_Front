@@ -1,80 +1,91 @@
 <div class="usuarios-page">
-    <div class="page-header">
-        <div>
-            <h1>Gestión de usuarios</h1>
-            <p>Administración de usuarios registrados y accesos al sistema</p>
+    <!-- =========================================================
+     CABECERA + FILTROS
+     - Contenedor unificado del título, acción principal y filtros
+     - Si luego deseas modificar esta sección, trabaja solo este bloque
+     ========================================================= -->
+    <div class="usuarios-panel">
+        <div class="usuarios-panel__header">
+            <div>
+                <h1>Gestión de usuarios</h1>
+                <p>Administración de usuarios registrados y accesos al sistema</p>
+            </div>
+
+            <button class="btn-primary" type="button" (click)="openUsuarioModal()" aria-label="Registrar nuevo usuario">
+                <i class="bi bi-plus-circle"></i>
+                <span>Nuevo usuario</span>
+            </button>
         </div>
 
-        <button class="btn-primary" type="button" (click)="openUsuarioModal()">
-            <i class="bi bi-plus-circle"></i>
-            <span>Nuevo usuario</span>
-        </button>
-    </div>
+        <div class="usuarios-panel__filters">
+            <div class="filters-grid">
+                <div class="form-group form-group-search">
+                    <label for="buscar">Buscar</label>
+                    <input id="buscar" type="text" placeholder="Buscar por nombres, documento, usuario o correo"
+                        [(ngModel)]="filtroBusqueda" (input)="applyFilters()" autocomplete="off" />
+                </div>
 
-    <div class="filters-card">
-        <div class="filters-grid">
-            <div class="form-group form-group-search">
-                <label for="buscar">Buscar</label>
-                <input id="buscar" type="text" placeholder="Buscar por nombres, documento, usuario o correo"
-                    [(ngModel)]="filtroBusqueda" (input)="applyFilters()" />
-            </div>
+                <div class="form-group">
+                    <label for="estado">Estado</label>
+                    <select id="estado" [(ngModel)]="filtroEstado" (change)="applyFilters()">
+                        <option value="">Todos</option>
+                        <option value="1">Activo</option>
+                        <option value="0">Inactivo</option>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label for="estado">Estado</label>
-                <select id="estado" [(ngModel)]="filtroEstado" (change)="applyFilters()">
-                    <option value="">Todos</option>
-                    <option value="1">Activo</option>
-                    <option value="0">Inactivo</option>
-                </select>
-            </div>
+                <div class="form-group">
+                    <label for="acceso">Acceso al sistema</label>
+                    <select id="acceso" [(ngModel)]="filtroAcceso" (change)="applyFilters()">
+                        <option value="">Todos</option>
+                        <option value="1">Con acceso</option>
+                        <option value="0">Sin acceso</option>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label for="acceso">Acceso al sistema</label>
-                <select id="acceso" [(ngModel)]="filtroAcceso" (change)="applyFilters()">
-                    <option value="">Todos</option>
-                    <option value="1">Con acceso</option>
-                    <option value="0">Sin acceso</option>
-                </select>
-            </div>
+                <div class="form-group">
+                    <label for="rol">Rol</label>
+                    <select id="rol" [(ngModel)]="filtroRol" (change)="applyFilters()">
+                        <option value="">Todos</option>
+                        <option value="ADMINISTRADOR">Administrador</option>
+                        <option value="JEFE_SEGURIDAD">Jefe de Seguridad</option>
+                        <option value="ANALISTA_SEGURIDAD">Analista de Seguridad</option>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label for="rol">Rol</label>
-                <select id="rol" [(ngModel)]="filtroRol" (change)="applyFilters()">
-                    <option value="">Todos</option>
-                    <option value="ADMINISTRADOR">Administrador</option>
-                    <option value="JEFE_SEGURIDAD">Jefe de Seguridad</option>
-                    <option value="ANALISTA_SEGURIDAD">Analista de Seguridad</option>
-                </select>
-            </div>
-
-            <div class="form-actions">
-                <button class="btn-secondary" type="button" (click)="clearFilters()">
-                    <i class="bi bi-arrow-clockwise"></i>
-                    <span>Limpiar</span>
-                </button>
+                <div class="form-actions">
+                    <button class="btn-secondary" type="button" (click)="clearFilters()" aria-label="Limpiar filtros">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span>Limpiar</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- =========================================================
+         MENSAJE DE ERROR DE CARGA
+         - Se muestra cuando ocurre un error al obtener usuarios
+         ========================================================= -->
     @if (loadError) {
     <div class="table-card">
-        <div class="alert-error">
+        <div class="alert-error" role="alert">
             <i class="bi bi-exclamation-triangle"></i>
             <span>{{ loadError }}</span>
         </div>
     </div>
     }
 
+    <!-- =========================================================
+         TABLA DE USUARIOS
+         - Encabezado del listado
+         - Tabla principal
+         - Estado vacío cuando no hay resultados
+         ========================================================= -->
     <div class="table-card">
         <div class="table-header">
             <h2>Listado de usuarios</h2>
             <span class="table-count">Total: {{ totalUsuarios }}</span>
-        </div>
-        <div style="margin-bottom: 12px; font-size: 14px;">
-            usuarios: {{ usuarios.length }} |
-            filtrados: {{ usuariosFiltrados.length }} |
-            paginados: {{ usuariosPaginados.length }} |
-            loading: {{ loadingUsuarios }}
         </div>
 
         <div class="table-responsive">
@@ -92,6 +103,7 @@
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     @if (!loadingUsuarios && usuariosPaginados.length > 0) {
                     @for (usuario of usuariosPaginados; track usuario.usuario_id) {
@@ -100,6 +112,7 @@
                         <td>{{ getDocumento(usuario) }}</td>
                         <td>{{ usuario.telefono || 'No registrado' }}</td>
                         <td>{{ usuario.cargo || 'No registrado' }}</td>
+
                         <td>
                             @if (usuario.username) {
                             <span class="text-strong">{{ usuario.username }}</span>
@@ -107,6 +120,7 @@
                             <span class="text-muted">Sin acceso</span>
                             }
                         </td>
+
                         <td>
                             @if (usuario.email) {
                             {{ usuario.email }}
@@ -114,6 +128,7 @@
                             <span class="text-muted">No aplica</span>
                             }
                         </td>
+
                         <td>
                             @if (usuario.rol_descripcion) {
                             <span class="role-badge">{{ usuario.rol_descripcion }}</span>
@@ -121,29 +136,32 @@
                             <span class="text-muted">No aplica</span>
                             }
                         </td>
+
                         <td>
                             <span class="status-badge" [class.status-active]="usuario.estado_usuario"
                                 [class.status-inactive]="!usuario.estado_usuario">
                                 {{ getEstadoLabel(usuario.estado_usuario) }}
                             </span>
                         </td>
+
                         <td class="text-center">
                             <div class="table-actions">
                                 <button class="action-btn action-btn-view" type="button" (click)="verUsuario(usuario)"
-                                    title="Ver detalle">
+                                    title="Ver detalle" aria-label="Ver detalle del usuario">
                                     <i class="bi bi-eye"></i>
                                 </button>
 
                                 <button class="action-btn action-btn-edit" type="button"
-                                    (click)="editarUsuario(usuario)" title="Editar usuario">
+                                    (click)="editarUsuario(usuario)" title="Editar usuario" aria-label="Editar usuario">
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
 
                                 <button class="action-btn action-btn-toggle" type="button"
                                     (click)="toggleEstado(usuario)"
-                                    [title]="usuario.estado_usuario ? 'Desactivar' : 'Activar'">
-                                    <i class="bi"
-                                        [ngClass]="usuario.estado_usuario ? 'bi-toggle-on' : 'bi-toggle-off'"></i>
+                                    [title]="usuario.estado_usuario ? 'Desactivar' : 'Activar'"
+                                    [attr.aria-label]="usuario.estado_usuario ? 'Desactivar usuario' : 'Activar usuario'">
+                                    <i class="bi" [ngClass]="usuario.estado_usuario ? 'bi-toggle-on' : 'bi-toggle-off'">
+                                    </i>
                                 </button>
                             </div>
                         </td>
@@ -160,29 +178,65 @@
             </table>
         </div>
 
+        <!-- =========================================================
+             PAGINACIÓN
+             IMPORTANTE:
+             - Si luego deseas cambiar solo la paginación,
+               modifica únicamente este bloque del HTML
+               junto con el bloque "PAGINACIÓN" en el CSS.
+             - Aquí se muestra:
+               1. Información de página actual
+               2. Total de registros
+               3. Botones de navegación
+             ========================================================= -->
         @if (!loadingUsuarios && totalPages > 0) {
-        <div class="pagination-bar">
-            <button class="pagination-btn" type="button" (click)="previousPage()" [disabled]="currentPage === 1">
-                Anterior
-            </button>
-
-            <div class="pagination-pages">
-                @for (page of pages; track page) {
-                <button class="pagination-btn page-number" type="button"
-                    [class.page-number-active]="page === currentPage" (click)="goToPage(page)">
-                    {{ page }}
-                </button>
-                }
+        <footer class="paginacion" aria-label="Paginación del listado de usuarios">
+            <div class="paginacion__info">
+                <span class="paginacion__texto">
+                    Página <strong>{{ currentPage }}</strong> de <strong>{{ totalPages }}</strong>
+                </span>
+                <span class="paginacion__separador">•</span>
+                <span class="paginacion__texto">
+                    Total de registros: <strong>{{ totalUsuarios }}</strong>
+                </span>
             </div>
 
-            <button class="pagination-btn" type="button" (click)="nextPage()" [disabled]="currentPage === totalPages">
-                Siguiente
-            </button>
-        </div>
+            <nav class="paginacion__navegacion" aria-label="Navegación entre páginas">
+                <button class="paginacion__boton paginacion__boton--control" type="button" (click)="previousPage()"
+                    [disabled]="currentPage === 1" aria-label="Ir a la página anterior">
+                    <i class="bi bi-chevron-left"></i>
+                    <span>Anterior</span>
+                </button>
+
+                <div class="paginacion__paginas">
+                    @for (page of pages; track page) {
+                    <button class="paginacion__numero" type="button"
+                        [class.paginacion__numero--activo]="page === currentPage"
+                        [attr.aria-current]="page === currentPage ? 'page' : null"
+                        [attr.aria-label]="page === currentPage ? 'Página actual ' + page : 'Ir a la página ' + page"
+                        (click)="goToPage(page)">
+                        {{ page }}
+                    </button>
+                    }
+                </div>
+
+                <button class="paginacion__boton paginacion__boton--control" type="button" (click)="nextPage()"
+                    [disabled]="currentPage === totalPages" aria-label="Ir a la página siguiente">
+                    <span>Siguiente</span>
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </nav>
+        </footer>
         }
     </div>
 </div>
 
+<!-- =========================================================
+     MODAL DE REGISTRO / EDICIÓN DE USUARIO
+     - Datos personales
+     - Acceso al sistema
+     - Foto principal
+     ========================================================= -->
 @if (showUsuarioModal) {
 <div class="modal-backdrop" (click)="closeUsuarioModal()">
     <div class="modal-container" (click)="$event.stopPropagation()">
@@ -192,19 +246,22 @@
                 <p>Registro de datos personales, acceso al sistema y foto principal</p>
             </div>
 
-            <button class="modal-close" type="button" (click)="closeUsuarioModal()">
+            <button class="modal-close" type="button" (click)="closeUsuarioModal()" aria-label="Cerrar ventana">
                 <i class="bi bi-x-lg"></i>
             </button>
         </div>
 
         <form class="modal-body" [formGroup]="usuarioForm" (ngSubmit)="saveUsuario()">
             @if (saveError) {
-            <div class="alert-error">
+            <div class="alert-error" role="alert">
                 <i class="bi bi-exclamation-triangle"></i>
                 <span>{{ saveError }}</span>
             </div>
             }
 
+            <!-- =====================================================
+                 SECCIÓN: DATOS DEL USUARIO
+                 ===================================================== -->
             <div class="modal-section">
                 <h3>Datos del usuario</h3>
 
@@ -276,54 +333,84 @@
                 </div>
             </div>
 
+            <!-- =====================================================
+     SECCIÓN: ACCESO AL SISTEMA
+     - Sección desplegable tipo acordeón
+     - El contenido solo se muestra cuando se hace clic
+     - Si luego deseas cambiar solo esta parte, modifica
+       este bloque junto con las clases CSS section-toggle*
+     ===================================================== -->
             <div class="modal-section">
-                <h3>Acceso al sistema</h3>
+                <button class="section-toggle" type="button" (click)="toggleAccesoSection()"
+                    [attr.aria-expanded]="showAccesoSection"
+                    aria-label="Mostrar u ocultar sección de acceso al sistema">
 
-                <div class="access-check">
-                    <input id="tiene_acceso" type="checkbox" formControlName="tiene_acceso" />
-                    <label for="tiene_acceso">Crear acceso al sistema</label>
-                </div>
-
-                <div class="modal-grid" [class.section-disabled]="!tieneAcceso">
-                    <div class="form-group">
-                        <label for="username_modal">Usuario</label>
-                        <input id="username_modal" type="text" formControlName="username" />
-                        @if (isInvalid('username')) {
-                        <small class="error-text">El usuario es obligatorio.</small>
-                        }
+                    <div class="section-toggle__content">
+                        <h3>Acceso al sistema</h3>
+                        <p>Configura usuario, correo, contraseña y rol del sistema</p>
                     </div>
 
-                    <div class="form-group">
-                        <label for="email_modal">Correo</label>
-                        <input id="email_modal" type="email" formControlName="email" />
-                        @if (isInvalid('email')) {
-                        <small class="error-text">Ingrese un correo válido.</small>
-                        }
+                    <div class="section-toggle__icon" [class.section-toggle__icon--open]="showAccesoSection">
+                        <span class="section-toggle__arrows">
+                            <i class="bi bi-chevron-down section-toggle__arrow"></i>
+                            <i class="bi bi-chevron-down section-toggle__arrow"></i>
+                            <i class="bi bi-chevron-down section-toggle__arrow"></i>
+                        </span>
+                    </div>
+                </button>
+
+                @if (showAccesoSection) {
+                <div class="section-toggle__body">
+                    <div class="access-check">
+                        <input id="tiene_acceso" type="checkbox" formControlName="tiene_acceso" />
+                        <label for="tiene_acceso">Crear acceso al sistema</label>
                     </div>
 
-                    <div class="form-group">
-                        <label for="password_modal">Contraseña</label>
-                        <input id="password_modal" type="password" formControlName="password" />
-                        @if (isInvalid('password')) {
-                        <small class="error-text">La contraseña debe tener al menos 8 caracteres.</small>
-                        }
-                    </div>
-
-                    <div class="form-group">
-                        <label for="rol_modal">Rol</label>
-                        <select id="rol_modal" formControlName="role_id">
-                            <option value="">Seleccione</option>
-                            @for (rol of roles; track rol.value) {
-                            <option [value]="rol.value">{{ rol.label }}</option>
+                    <div class="modal-grid" [class.section-disabled]="!tieneAcceso">
+                        <div class="form-group">
+                            <label for="username_modal">Usuario</label>
+                            <input id="username_modal" type="text" formControlName="username" />
+                            @if (isInvalid('username')) {
+                            <small class="error-text">El usuario es obligatorio.</small>
                             }
-                        </select>
-                        @if (isInvalid('role_id')) {
-                        <small class="error-text">Seleccione un rol.</small>
-                        }
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email_modal">Correo</label>
+                            <input id="email_modal" type="email" formControlName="email" />
+                            @if (isInvalid('email')) {
+                            <small class="error-text">Ingrese un correo válido.</small>
+                            }
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password_modal">Contraseña</label>
+                            <input id="password_modal" type="password" formControlName="password" />
+                            @if (isInvalid('password')) {
+                            <small class="error-text">La contraseña debe tener al menos 8 caracteres.</small>
+                            }
+                        </div>
+
+                        <div class="form-group">
+                            <label for="rol_modal">Rol</label>
+                            <select id="rol_modal" formControlName="role_id">
+                                <option value="">Seleccione</option>
+                                @for (rol of roles; track rol.value) {
+                                <option [value]="rol.value">{{ rol.label }}</option>
+                                }
+                            </select>
+                            @if (isInvalid('role_id')) {
+                            <small class="error-text">Seleccione un rol.</small>
+                            }
+                        </div>
                     </div>
                 </div>
+                }
             </div>
 
+            <!-- =====================================================
+                 SECCIÓN: FOTO PRINCIPAL
+                 ===================================================== -->
             <div class="modal-section">
                 <h3>Foto principal</h3>
 
@@ -346,6 +433,9 @@
                 </div>
             </div>
 
+            <!-- =====================================================
+                 ACCIONES DEL MODAL
+                 ===================================================== -->
             <div class="modal-footer">
                 <button class="btn-secondary" type="button" (click)="closeUsuarioModal()">
                     Cancelar

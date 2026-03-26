@@ -1,6 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
-
+import {
+  ApplicationRef,
+  ChangeDetectorRef,
+  Component,
+  OnInit
+} from '@angular/core';
 import {
   FormBuilder,
   FormGroup,
@@ -8,6 +12,7 @@ import {
   ReactiveFormsModule,
   Validators
 } from '@angular/forms';
+import { catchError, finalize, of } from 'rxjs';
 import {
   UsuarioListadoApi,
   UsuariosApiService
@@ -36,6 +41,9 @@ interface UsuarioListado {
   styleUrl: './usuarios.css'
 })
 export class UsuariosComponent implements OnInit {
+  instanceId = Math.random().toString(36).slice(2, 8);
+
+  totalUsuarios = 0;
   showUsuarioModal = false;
 
   usuarioForm!: FormGroup;
@@ -46,6 +54,8 @@ export class UsuariosComponent implements OnInit {
   loadError = '';
 
   usuarios: UsuarioListado[] = [];
+  usuariosFiltrados: UsuarioListado[] = [];
+  usuariosPaginados: UsuarioListado[] = [];
 
   filtroBusqueda = '';
   filtroEstado = '';
@@ -54,6 +64,7 @@ export class UsuariosComponent implements OnInit {
 
   currentPage = 1;
   pageSize = 3;
+  totalPages = 0;
 
   tiposDocumento = [
     { value: 'DNI', label: 'DNI' },
@@ -73,7 +84,9 @@ export class UsuariosComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private usuariosApiService: UsuariosApiService
+    private usuariosApiService: UsuariosApiService,
+    private appRef: ApplicationRef,
+    private cdr: ChangeDetectorRef
   ) { }
 
   ngOnInit(): void {
@@ -86,65 +99,8 @@ export class UsuariosComponent implements OnInit {
     return this.usuarioForm.get('tiene_acceso')?.value === true;
   }
 
-  private filtrarUsuarios(): UsuarioListado[] {
-    const texto = (this.filtroBusqueda || '').trim().toLowerCase();
-
-    return this.usuarios.filter((usuario) => {
-      const cumpleBusqueda =
-        !texto ||
-        usuario.nombre_completo.toLowerCase().includes(texto) ||
-        usuario.numero_documento.toLowerCase().includes(texto) ||
-        (usuario.username ?? '').toLowerCase().includes(texto) ||
-        (usuario.email ?? '').toLowerCase().includes(texto);
-
-      const cumpleEstado =
-        this.filtroEstado === '' ||
-        String(Number(usuario.estado_usuario)) === this.filtroEstado;
-
-      const tieneAcceso = usuario.user_id !== null;
-
-      const cumpleAcceso =
-        this.filtroAcceso === '' ||
-        String(Number(tieneAcceso)) === this.filtroAcceso;
-
-      const cumpleRol =
-        this.filtroRol === '' ||
-        usuario.rol_codigo === this.filtroRol;
-
-      return cumpleBusqueda && cumpleEstado && cumpleAcceso && cumpleRol;
-    });
-  }
-
-  get usuariosFiltrados(): UsuarioListado[] {
-    return this.filtrarUsuarios();
-  }
-
-  get totalUsuarios(): number {
-    return this.usuariosFiltrados.length;
-  }
-
-  get totalPages(): number {
-    return this.totalUsuarios === 0
-      ? 0
-      : Math.ceil(this.totalUsuarios / this.pageSize);
-  }
-
   get pages(): number[] {
     return Array.from({ length: this.totalPages }, (_, index) => index + 1);
-  }
-
-  get usuariosPaginados(): UsuarioListado[] {
-    const filtrados = this.usuariosFiltrados;
-
-    if (filtrados.length === 0) {
-      return [];
-    }
-
-    const paginaActual = Math.min(this.currentPage, this.totalPages || 1);
-    const startIndex = (paginaActual - 1) * this.pageSize;
-    const endIndex = startIndex + this.pageSize;
-
-    return filtrados.slice(startIndex, endIndex);
   }
 
   buildForm(): void {
@@ -212,30 +168,103 @@ export class UsuariosComponent implements OnInit {
     this.loadingUsuarios = true;
     this.loadError = '';
 
-    this.usuariosApiService.getAll().subscribe({
-      next: (response: UsuarioListadoApi[]) => {
+    this.usuariosApiService.getAll().pipe(
+      catchError(() => {
+        this.loadError = 'No se pudo cargar el listado de usuarios.';
+        return of([] as UsuarioListadoApi[]);
+      }),
+      finalize(() => {
+        this.loadingUsuarios = false;
+        this.cdr.detectChanges();
+        this.appRef.tick();
+      })
+    ).subscribe((response: UsuarioListadoApi[]) => {
+      try {
         const data = Array.isArray(response) ? response : [];
 
         this.usuarios = data.map((item) => ({
           ...item,
-          estado_usuario: item.estado_usuario === true || Number(item.estado_usuario) === 1
+          estado_usuario:
+            item.estado_usuario === true || Number(item.estado_usuario) === 1
         }));
 
+        this.filtroBusqueda = '';
+        this.filtroEstado = '';
+        this.filtroAcceso = '';
+        this.filtroRol = '';
         this.currentPage = 1;
-        this.loadingUsuarios = false;
-      },
-      error: (error) => {
-        this.loadingUsuarios = false;
-        this.loadError = 'No se pudo cargar el listado de usuarios.';
-        console.error('Error al cargar usuarios', error);
+
+        this.applyFilters();
+
+        this.cdr.detectChanges();
+        this.appRef.tick();
+      } catch {
+        this.loadError = 'Ocurrió un error al procesar la respuesta.';
         this.usuarios = [];
-        this.currentPage = 1;
+        this.usuariosFiltrados = [];
+        this.usuariosPaginados = [];
+        this.totalUsuarios = 0;
+        this.totalPages = 0;
       }
     });
   }
 
   applyFilters(): void {
+    const texto = (this.filtroBusqueda ?? '').trim().toLowerCase();
+    const listaBase = Array.isArray(this.usuarios) ? this.usuarios : [];
+
+    this.usuariosFiltrados = listaBase.filter((usuario) => {
+      const nombre = (usuario.nombre_completo ?? '').toLowerCase();
+      const documento = (usuario.numero_documento ?? '').toLowerCase();
+      const username = (usuario.username ?? '').toLowerCase();
+      const email = (usuario.email ?? '').toLowerCase();
+
+      const cumpleBusqueda =
+        !texto ||
+        nombre.includes(texto) ||
+        documento.includes(texto) ||
+        username.includes(texto) ||
+        email.includes(texto);
+
+      const cumpleEstado =
+        this.filtroEstado === '' ||
+        String(Number(!!usuario.estado_usuario)) === this.filtroEstado;
+
+      const tieneAcceso = usuario.user_id !== null;
+
+      const cumpleAcceso =
+        this.filtroAcceso === '' ||
+        String(Number(tieneAcceso)) === this.filtroAcceso;
+
+      const cumpleRol =
+        this.filtroRol === '' ||
+        usuario.rol_codigo === this.filtroRol;
+
+      return cumpleBusqueda && cumpleEstado && cumpleAcceso && cumpleRol;
+    });
+
+    this.totalUsuarios = this.usuariosFiltrados.length;
     this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  updatePagination(): void {
+    this.totalPages = Math.ceil(this.usuariosFiltrados.length / this.pageSize);
+
+    if (this.totalPages === 0) {
+      this.currentPage = 1;
+      this.usuariosPaginados = [];
+      return;
+    }
+
+    if (this.currentPage > this.totalPages) {
+      this.currentPage = this.totalPages;
+    }
+
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+
+    this.usuariosPaginados = this.usuariosFiltrados.slice(startIndex, endIndex);
   }
 
   goToPage(page: number): void {
@@ -244,17 +273,20 @@ export class UsuariosComponent implements OnInit {
     }
 
     this.currentPage = page;
+    this.updatePagination();
   }
 
   previousPage(): void {
     if (this.currentPage > 1) {
       this.currentPage--;
+      this.updatePagination();
     }
   }
 
   nextPage(): void {
     if (this.currentPage < this.totalPages) {
       this.currentPage++;
+      this.updatePagination();
     }
   }
 
@@ -264,6 +296,7 @@ export class UsuariosComponent implements OnInit {
     this.filtroAcceso = '';
     this.filtroRol = '';
     this.currentPage = 1;
+    this.applyFilters();
   }
 
   openUsuarioModal(): void {
@@ -301,6 +334,7 @@ export class UsuariosComponent implements OnInit {
     this.selectedPhotoName = '';
     this.selectedPhotoFile = null;
     this.photoPreviewUrl = null;
+    this.showAccesoSection = false;
 
     this.usuarioForm.markAsPristine();
     this.usuarioForm.markAsUntouched();
@@ -364,15 +398,13 @@ export class UsuariosComponent implements OnInit {
     this.savingUsuario = true;
 
     this.usuariosApiService.create(formData).subscribe({
-      next: (response) => {
-        console.log('Usuario guardado:', response);
+      next: () => {
         this.savingUsuario = false;
         this.closeUsuarioModal();
         this.loadUsuarios();
       },
       error: (error) => {
         this.savingUsuario = false;
-        console.error('Error al guardar usuario', error);
         this.saveError =
           error?.error?.message ||
           'Ocurrió un error al registrar el usuario.';
@@ -395,15 +427,17 @@ export class UsuariosComponent implements OnInit {
 
   toggleEstado(usuario: UsuarioListado): void {
     usuario.estado_usuario = !usuario.estado_usuario;
+    this.applyFilters();
   }
 
   editarUsuario(usuario: UsuarioListado): void {
-    console.log('Editar usuario:', usuario);
     this.openUsuarioModal();
   }
 
-  verUsuario(usuario: UsuarioListado): void {
-    console.log('Ver usuario:', usuario);
+  verUsuario(usuario: UsuarioListado): void { }
+  showAccesoSection = false;
+
+  toggleAccesoSection(): void {
+    this.showAccesoSection = !this.showAccesoSection;
   }
 }
-

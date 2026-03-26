@@ -1,11 +1,26 @@
 :host {
     display: block;
-    height: 100vh;
+    height: calc(100vh / var(--app-scale, 1));
+
+    /* =========================================================
+       VARIABLES DEL SIDEBAR
+       - Si luego deseas cambiar anchos o alturas del menú,
+         modifica solo estas variables.
+       - La escala visual general la controla --app-scale
+         desde el CSS del layout principal.
+       ========================================================= */
+    --sidebar-width-expanded: 270px;
+    --sidebar-width-collapsed: 82px;
+    --sidebar-header-height: 70px;
+    --sidebar-user-card-margin: 10px;
 }
 
+/* =========================================================
+   CONTENEDOR PRINCIPAL DEL SIDEBAR
+   ========================================================= */
 .sidebar {
-    width: 270px;
-    height: 100vh;
+    width: var(--sidebar-width-expanded);
+    height: calc(100vh / var(--app-scale, 1));
     display: flex;
     flex-direction: column;
     background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
@@ -17,11 +32,14 @@
 }
 
 .sidebar.sidebar-collapsed {
-    width: 82px;
+    width: var(--sidebar-width-collapsed);
 }
 
+/* =========================================================
+   CABECERA DEL SIDEBAR
+   ========================================================= */
 .sidebar-header {
-    min-height: 70px;
+    min-height: var(--sidebar-header-height);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -88,6 +106,9 @@
     background: rgba(255, 255, 255, 0.12);
 }
 
+/* =========================================================
+   CUERPO DEL SIDEBAR
+   ========================================================= */
 .sidebar-body {
     flex: 1;
     overflow-y: auto;
@@ -106,6 +127,9 @@
     border-radius: 999px;
 }
 
+/* =========================================================
+   TÍTULOS DE GRUPO
+   ========================================================= */
 .group-title {
     padding: 10px 10px 7px;
     font-size: 10px;
@@ -115,6 +139,9 @@
     color: #64748b;
 }
 
+/* =========================================================
+   LISTAS
+   ========================================================= */
 .menu-list,
 .submenu-list {
     list-style: none;
@@ -129,6 +156,9 @@
     overflow: hidden;
 }
 
+/* =========================================================
+   ENLACES DE MENÚ PRINCIPAL
+   ========================================================= */
 .menu-link {
     width: 100%;
     max-width: 100%;
@@ -204,6 +234,9 @@
     transform: rotate(180deg);
 }
 
+/* =========================================================
+   SUBMENÚS
+   ========================================================= */
 .submenu-wrapper {
     max-height: 0;
     overflow: hidden;
@@ -246,8 +279,11 @@
     border-color: rgba(45, 212, 191, 0.16);
 }
 
+/* =========================================================
+   TARJETA DE USUARIO
+   ========================================================= */
 .user-card {
-    margin: 10px;
+    margin: var(--sidebar-user-card-margin);
     padding: 12px;
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.05);
@@ -288,4 +324,26 @@
     margin-top: 2px;
     font-size: 11px;
     color: #94a3b8;
+}
+
+.brand-logo {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    /*border-color: #f8fafc;
+    border-width: 0.5px;
+    border-style: solid;*/
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+
+.brand-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
