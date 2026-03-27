@@ -1,8 +1,7 @@
 import { CommonModule } from '@angular/common';
 import {
-  ApplicationRef,
-  ChangeDetectorRef,
   Component,
+  HostListener,
   OnInit
 } from '@angular/core';
 import {
@@ -18,6 +17,10 @@ import {
   UsuariosApiService
 } from '../../core/services/usuarios-api.service';
 
+/* =========================================================
+   INTERFAZ DEL LISTADO DE USUARIOS
+   - Representa la estructura devuelta por el endpoint de consulta
+   ========================================================= */
 interface UsuarioListado {
   usuario_id: number;
   nombre_completo: string;
@@ -33,6 +36,20 @@ interface UsuarioListado {
   rol_descripcion: string | null;
 }
 
+/* =========================================================
+   INTERFAZ DE FOTOS DEL USUARIO
+   - Cada foto mantiene su propio zoom y desplazamiento
+   ========================================================= */
+interface UsuarioFoto {
+  name: string;
+  file: File;
+  previewUrl: string;
+  adjustedBase64: string | null;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
 @Component({
   selector: 'app-usuarios',
   standalone: true,
@@ -41,8 +58,9 @@ interface UsuarioListado {
   styleUrl: './usuarios.css'
 })
 export class UsuariosComponent implements OnInit {
-  instanceId = Math.random().toString(36).slice(2, 8);
-
+  /* =========================================================
+     ESTADO GENERAL DE LA PANTALLA
+     ========================================================= */
   totalUsuarios = 0;
   showUsuarioModal = false;
 
@@ -53,6 +71,9 @@ export class UsuariosComponent implements OnInit {
   saveError = '';
   loadError = '';
 
+  /* =========================================================
+     LISTADO, FILTROS Y PAGINACIÓN
+     ========================================================= */
   usuarios: UsuarioListado[] = [];
   usuariosFiltrados: UsuarioListado[] = [];
   usuariosPaginados: UsuarioListado[] = [];
@@ -66,6 +87,9 @@ export class UsuariosComponent implements OnInit {
   pageSize = 3;
   totalPages = 0;
 
+  /* =========================================================
+     CATÁLOGOS DEL FORMULARIO
+     ========================================================= */
   tiposDocumento = [
     { value: 'DNI', label: 'DNI' },
     { value: 'CE', label: 'Carné de extranjería' },
@@ -78,31 +102,128 @@ export class UsuariosComponent implements OnInit {
     { value: 3, codigo: 'ANALISTA_SEGURIDAD', label: 'Analista de Seguridad' }
   ];
 
-  selectedPhotoName = '';
-  selectedPhotoFile: File | null = null;
-  photoPreviewUrl: string | null = null;
+  /* =========================================================
+     SECCIÓN DESPLEGABLE: ACCESO AL SISTEMA
+     ========================================================= */
+  showAccesoSection = false;
+
+  /* =========================================================
+     FOTOS DEL USUARIO
+     - Hasta 4 fotos
+     - Se edita una foto activa a la vez
+     - La vista previa final sigue dentro de 450x450
+     ========================================================= */
+  readonly maxPhotos = 4;
+  readonly photoSize = 450;
+
+  usuarioFotos: UsuarioFoto[] = [];
+  activePhotoIndex = 0;
+
+  /* =========================================================
+     DRAG DE LA FOTO ACTIVA DENTRO DEL MARCO
+     ========================================================= */
+  isDraggingPhoto = false;
+  dragStartX = 0;
+  dragStartY = 0;
+  initialOffsetX = 0;
+  initialOffsetY = 0;
 
   constructor(
     private fb: FormBuilder,
-    private usuariosApiService: UsuariosApiService,
-    private appRef: ApplicationRef,
-    private cdr: ChangeDetectorRef
+    private usuariosApiService: UsuariosApiService
   ) { }
 
+  /* =========================================================
+     CICLO DE VIDA
+     ========================================================= */
   ngOnInit(): void {
     this.buildForm();
     this.configureAccessSection();
     this.loadUsuarios();
   }
 
+  /* =========================================================
+     GETTERS DE APOYO
+     ========================================================= */
   get tieneAcceso(): boolean {
     return this.usuarioForm.get('tiene_acceso')?.value === true;
   }
 
   get pages(): number[] {
-    return Array.from({ length: this.totalPages }, (_, index) => index + 1);
+    const maxVisiblePages = 4;
+
+    if (this.totalPages <= maxVisiblePages) {
+      return Array.from({ length: this.totalPages }, (_, index) => index + 1);
+    }
+
+    let startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = startPage + maxVisiblePages - 1;
+
+    if (endPage > this.totalPages) {
+      endPage = this.totalPages;
+      startPage = endPage - maxVisiblePages + 1;
+    }
+
+    return Array.from(
+      { length: endPage - startPage + 1 },
+      (_, index) => startPage + index
+    );
   }
 
+  get activePhoto(): UsuarioFoto | null {
+    return this.usuarioFotos[this.activePhotoIndex] ?? null;
+  }
+
+  get selectedPhotoName(): string {
+    return this.activePhoto?.name ?? '';
+  }
+
+  get photoPreviewUrl(): string | null {
+    return this.activePhoto?.previewUrl ?? null;
+  }
+
+  get adjustedPhotoBase64(): string | null {
+    return this.activePhoto?.adjustedBase64 ?? null;
+  }
+
+  get photoScale(): number {
+    return this.activePhoto?.scale ?? 1;
+  }
+
+  get photoOffsetX(): number {
+    return this.activePhoto?.offsetX ?? 0;
+  }
+
+  get photoOffsetY(): number {
+    return this.activePhoto?.offsetY ?? 0;
+  }
+
+  get photoFrameSize(): number {
+    return this.photoSize;
+  }
+
+  get photoOffsetLimit(): number {
+    return Math.max(80, Math.round(this.photoFrameSize * 0.75));
+  }
+
+  get photoFrameStyles(): Record<string, string> {
+    const size = `${this.photoFrameSize}px`;
+
+    return {
+      width: size,
+      height: size
+    };
+  }
+
+  get photoImageStyles(): Record<string, string> {
+    return {
+      transform: `translate(${this.photoOffsetX}px, ${this.photoOffsetY}px) scale(${this.photoScale})`
+    };
+  }
+
+  /* =========================================================
+     CONSTRUCCIÓN DEL FORMULARIO
+     ========================================================= */
   buildForm(): void {
     this.usuarioForm = this.fb.group({
       nombres: ['', [Validators.required, Validators.maxLength(100)]],
@@ -123,6 +244,9 @@ export class UsuariosComponent implements OnInit {
     });
   }
 
+  /* =========================================================
+     HABILITAR / DESHABILITAR CAMPOS DE ACCESO AL SISTEMA
+     ========================================================= */
   configureAccessSection(): void {
     this.usuarioForm.get('tiene_acceso')?.valueChanges.subscribe((enabled: boolean) => {
       const usernameControl = this.usuarioForm.get('username');
@@ -164,6 +288,9 @@ export class UsuariosComponent implements OnInit {
     });
   }
 
+  /* =========================================================
+     CARGAR LISTADO DE USUARIOS
+     ========================================================= */
   loadUsuarios(): void {
     this.loadingUsuarios = true;
     this.loadError = '';
@@ -175,8 +302,6 @@ export class UsuariosComponent implements OnInit {
       }),
       finalize(() => {
         this.loadingUsuarios = false;
-        this.cdr.detectChanges();
-        this.appRef.tick();
       })
     ).subscribe((response: UsuarioListadoApi[]) => {
       try {
@@ -195,9 +320,6 @@ export class UsuariosComponent implements OnInit {
         this.currentPage = 1;
 
         this.applyFilters();
-
-        this.cdr.detectChanges();
-        this.appRef.tick();
       } catch {
         this.loadError = 'Ocurrió un error al procesar la respuesta.';
         this.usuarios = [];
@@ -209,6 +331,9 @@ export class UsuariosComponent implements OnInit {
     });
   }
 
+  /* =========================================================
+     FILTROS
+     ========================================================= */
   applyFilters(): void {
     const texto = (this.filtroBusqueda ?? '').trim().toLowerCase();
     const listaBase = Array.isArray(this.usuarios) ? this.usuarios : [];
@@ -248,6 +373,9 @@ export class UsuariosComponent implements OnInit {
     this.updatePagination();
   }
 
+  /* =========================================================
+     PAGINACIÓN
+     ========================================================= */
   updatePagination(): void {
     this.totalPages = Math.ceil(this.usuariosFiltrados.length / this.pageSize);
 
@@ -299,6 +427,9 @@ export class UsuariosComponent implements OnInit {
     this.applyFilters();
   }
 
+  /* =========================================================
+     CONTROL DEL MODAL
+     ========================================================= */
   openUsuarioModal(): void {
     this.formSubmitted = false;
     this.saveError = '';
@@ -331,37 +462,269 @@ export class UsuariosComponent implements OnInit {
       role_id: ''
     });
 
-    this.selectedPhotoName = '';
-    this.selectedPhotoFile = null;
-    this.photoPreviewUrl = null;
+    this.usuarioFotos = [];
+    this.activePhotoIndex = 0;
     this.showAccesoSection = false;
+    this.isDraggingPhoto = false;
 
     this.usuarioForm.markAsPristine();
     this.usuarioForm.markAsUntouched();
   }
 
-  onPhotoSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
+  /* =========================================================
+     SECCIÓN DESPLEGABLE: ACCESO AL SISTEMA
+     ========================================================= */
+  toggleAccesoSection(): void {
+    this.showAccesoSection = !this.showAccesoSection;
+  }
 
-    if (!file) {
-      this.selectedPhotoName = '';
-      this.selectedPhotoFile = null;
-      this.photoPreviewUrl = null;
+  /* =========================================================
+     FOTO - AJUSTES
+     - Tamaño fijo 450x450
+     - Solo se resetea la foto activa
+     ========================================================= */
+  resetPhotoAdjustments(): void {
+    const foto = this.activePhoto;
+    if (!foto) {
       return;
     }
 
-    this.selectedPhotoName = file.name;
-    this.selectedPhotoFile = file;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      this.photoPreviewUrl = reader.result as string;
-    };
-    reader.readAsDataURL(file);
+    foto.scale = 1;
+    foto.offsetX = 0;
+    foto.offsetY = 0;
+    foto.adjustedBase64 = null;
+    this.isDraggingPhoto = false;
   }
 
-  saveUsuario(): void {
+  onPhotoScaleChange(value: number): void {
+    const foto = this.activePhoto;
+    if (!foto) {
+      return;
+    }
+
+    foto.scale = this.clamp(Number(value) || 1, 1, 2.5);
+    this.normalizePhotoOffsets();
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private normalizePhotoOffsets(): void {
+    const foto = this.activePhoto;
+    if (!foto) {
+      return;
+    }
+
+    foto.offsetX = this.clamp(foto.offsetX, -this.photoOffsetLimit, this.photoOffsetLimit);
+    foto.offsetY = this.clamp(foto.offsetY, -this.photoOffsetLimit, this.photoOffsetLimit);
+  }
+
+  /* =========================================================
+     FOTO - SELECCIONAR IMÁGENES
+     - Permite cargar hasta 4 fotos
+     - Cada foto mantiene su propio ajuste
+     ========================================================= */
+  onPhotoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+
+    if (!files.length) {
+      return;
+    }
+
+    const disponibles = this.maxPhotos - this.usuarioFotos.length;
+    if (disponibles <= 0) {
+      input.value = '';
+      return;
+    }
+
+    const archivosTomados = files.slice(0, disponibles);
+
+    archivosTomados.forEach((file) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        this.usuarioFotos.push({
+          name: file.name,
+          file,
+          previewUrl: reader.result as string,
+          adjustedBase64: null,
+          scale: 1,
+          offsetX: 0,
+          offsetY: 0
+        });
+
+        this.activePhotoIndex = this.usuarioFotos.length - 1;
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    input.value = '';
+  }
+
+  selectPhoto(index: number): void {
+    if (index < 0 || index >= this.usuarioFotos.length) {
+      return;
+    }
+
+    this.activePhotoIndex = index;
+    this.isDraggingPhoto = false;
+  }
+
+  removePhoto(index: number): void {
+    if (index < 0 || index >= this.usuarioFotos.length) {
+      return;
+    }
+
+    this.usuarioFotos.splice(index, 1);
+
+    if (this.usuarioFotos.length === 0) {
+      this.activePhotoIndex = 0;
+      this.isDraggingPhoto = false;
+      return;
+    }
+
+    if (index < this.activePhotoIndex) {
+      this.activePhotoIndex--;
+    } else if (index === this.activePhotoIndex) {
+      this.activePhotoIndex = Math.max(0, this.activePhotoIndex - 1);
+    }
+
+    if (this.activePhotoIndex >= this.usuarioFotos.length) {
+      this.activePhotoIndex = this.usuarioFotos.length - 1;
+    }
+
+    this.isDraggingPhoto = false;
+  }
+
+  /* =========================================================
+     FOTO - DRAG DENTRO DEL MARCO DE AJUSTE
+     - Permite centrar la foto activa arrastrando con el mouse
+     ========================================================= */
+  onPhotoEditorMouseDown(event: MouseEvent): void {
+    const foto = this.activePhoto;
+    if (!foto) {
+      return;
+    }
+
+    event.preventDefault();
+
+    this.isDraggingPhoto = true;
+    this.dragStartX = event.clientX;
+    this.dragStartY = event.clientY;
+    this.initialOffsetX = foto.offsetX;
+    this.initialOffsetY = foto.offsetY;
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onPhotoEditorMouseMove(event: MouseEvent): void {
+    const foto = this.activePhoto;
+
+    if (!this.isDraggingPhoto || !foto) {
+      return;
+    }
+
+    const deltaX = event.clientX - this.dragStartX;
+    const deltaY = event.clientY - this.dragStartY;
+
+    foto.offsetX = this.clamp(
+      this.initialOffsetX + deltaX,
+      -this.photoOffsetLimit,
+      this.photoOffsetLimit
+    );
+
+    foto.offsetY = this.clamp(
+      this.initialOffsetY + deltaY,
+      -this.photoOffsetLimit,
+      this.photoOffsetLimit
+    );
+  }
+
+  @HostListener('document:mouseup')
+  onPhotoEditorMouseUp(): void {
+    this.isDraggingPhoto = false;
+  }
+
+  /* =========================================================
+     FOTO - ZOOM CON RUEDA DEL MOUSE
+     ========================================================= */
+  onPhotoEditorWheel(event: WheelEvent): void {
+    const foto = this.activePhoto;
+
+    if (!foto) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const delta = event.deltaY < 0 ? 0.1 : -0.1;
+    const nextScale = parseFloat((foto.scale + delta).toFixed(1));
+
+    foto.scale = this.clamp(nextScale, 1, 2.5);
+    this.normalizePhotoOffsets();
+  }
+
+  /* =========================================================
+     FOTO - CARGAR IMAGEN EN MEMORIA
+     ========================================================= */
+  private loadImage(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = src;
+    });
+  }
+
+  /* =========================================================
+     FOTO - GENERAR BASE64 FINAL AJUSTADO
+     - Genera la imagen final 450x450 por cada foto
+     ========================================================= */
+  private async buildAdjustedPhotoBase64(foto: UsuarioFoto): Promise<string | null> {
+    if (!foto?.previewUrl) {
+      return null;
+    }
+
+    const image = await this.loadImage(foto.previewUrl);
+    const size = this.photoFrameSize;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return null;
+    }
+
+    const imageWidth = image.naturalWidth || image.width;
+    const imageHeight = image.naturalHeight || image.height;
+
+    const baseScale = Math.max(size / imageWidth, size / imageHeight);
+    const finalScale = baseScale * foto.scale;
+
+    const drawWidth = imageWidth * finalScale;
+    const drawHeight = imageHeight * finalScale;
+
+    const x = (size - drawWidth) / 2 + foto.offsetX;
+    const y = (size - drawHeight) / 2 + foto.offsetY;
+
+    ctx.clearRect(0, 0, size, size);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(image, x, y, drawWidth, drawHeight);
+
+    return canvas.toDataURL('image/jpeg', 0.92);
+  }
+
+  /* =========================================================
+     GUARDAR USUARIO
+     - Se envía JSON
+     - Las fotos se envían en base64 para guardar en BD
+     ========================================================= */
+  async saveUsuario(): Promise<void> {
     this.formSubmitted = true;
     this.saveError = '';
 
@@ -371,33 +734,54 @@ export class UsuariosComponent implements OnInit {
     }
 
     const raw = this.usuarioForm.getRawValue();
-    const formData = new FormData();
 
-    formData.append('nombres', raw.nombres);
-    formData.append('apellido_paterno', raw.apellido_paterno);
-    formData.append('apellido_materno', raw.apellido_materno || '');
-    formData.append('tipo_documento', raw.tipo_documento);
-    formData.append('numero_documento', raw.numero_documento);
-    formData.append('telefono', raw.telefono || '');
-    formData.append('direccion', raw.direccion || '');
-    formData.append('cargo', raw.cargo || '');
-    formData.append('estado', raw.estado ? '1' : '0');
-    formData.append('tiene_acceso', raw.tiene_acceso ? '1' : '0');
+    let fotosPrincipalesBase64: string[] = [];
 
-    if (raw.tiene_acceso) {
-      formData.append('username', raw.username);
-      formData.append('email', raw.email);
-      formData.append('password', raw.password);
-      formData.append('role_id', String(raw.role_id));
+    if (this.usuarioFotos.length) {
+      try {
+        fotosPrincipalesBase64 = (
+          await Promise.all(
+            this.usuarioFotos.map(async (foto) => {
+              const base64 = await this.buildAdjustedPhotoBase64(foto);
+              foto.adjustedBase64 = base64;
+              return base64;
+            })
+          )
+        ).filter((item): item is string => !!item);
+      } catch {
+        this.saveError = 'No se pudieron procesar las fotos seleccionadas.';
+        return;
+      }
     }
 
-    if (this.selectedPhotoFile) {
-      formData.append('foto_principal', this.selectedPhotoFile);
-    }
+    const payload = {
+      nombres: raw.nombres,
+      apellido_paterno: raw.apellido_paterno,
+      apellido_materno: raw.apellido_materno || '',
+      tipo_documento: raw.tipo_documento,
+      numero_documento: raw.numero_documento,
+      telefono: raw.telefono || '',
+      direccion: raw.direccion || '',
+      cargo: raw.cargo || '',
+      estado: raw.estado ? 1 : 0,
+      tiene_acceso: raw.tiene_acceso ? 1 : 0,
+
+      username: raw.tiene_acceso ? raw.username : null,
+      email: raw.tiene_acceso ? raw.email : null,
+      password: raw.tiene_acceso ? raw.password : null,
+      role_id: raw.tiene_acceso ? Number(raw.role_id) : null,
+
+      /* =====================================================
+         FOTOS EN BASE64
+         - Se guardan en la base de datos
+         - Cada foto se genera en formato final 450x450
+         ===================================================== */
+      fotos_principales_base64: fotosPrincipalesBase64
+    };
 
     this.savingUsuario = true;
 
-    this.usuariosApiService.create(formData).subscribe({
+    this.usuariosApiService.create(payload).subscribe({
       next: () => {
         this.savingUsuario = false;
         this.closeUsuarioModal();
@@ -412,11 +796,17 @@ export class UsuariosComponent implements OnInit {
     });
   }
 
+  /* =========================================================
+     VALIDACIONES VISUALES
+     ========================================================= */
   isInvalid(controlName: string): boolean {
     const control = this.usuarioForm.get(controlName);
     return !!control && control.invalid && (control.touched || this.formSubmitted);
   }
 
+  /* =========================================================
+     HELPERS DE PRESENTACIÓN
+     ========================================================= */
   getDocumento(usuario: UsuarioListado): string {
     return `${usuario.numero_documento}`;
   }
@@ -425,6 +815,9 @@ export class UsuariosComponent implements OnInit {
     return estado ? 'Activo' : 'Inactivo';
   }
 
+  /* =========================================================
+     ACCIONES DE TABLA
+     ========================================================= */
   toggleEstado(usuario: UsuarioListado): void {
     usuario.estado_usuario = !usuario.estado_usuario;
     this.applyFilters();
@@ -435,9 +828,4 @@ export class UsuariosComponent implements OnInit {
   }
 
   verUsuario(usuario: UsuarioListado): void { }
-  showAccesoSection = false;
-
-  toggleAccesoSection(): void {
-    this.showAccesoSection = !this.showAccesoSection;
-  }
 }

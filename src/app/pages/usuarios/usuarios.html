@@ -407,32 +407,138 @@
                 </div>
                 }
             </div>
-
             <!-- =====================================================
-                 SECCIÓN: FOTO PRINCIPAL
-                 ===================================================== -->
+     SECCIÓN: FOTOS DEL USUARIO
+     - Izquierda: edición de la foto activa
+     - Derecha: vista previa final 450x450
+     - La vista previa final muestra hasta 4 fotos
+     ===================================================== -->
             <div class="modal-section">
-                <h3>Foto principal</h3>
+                <h3>Fotos del usuario</h3>
 
-                <div class="photo-upload-box">
-                    @if (photoPreviewUrl) {
-                    <img [src]="photoPreviewUrl" alt="Vista previa" class="photo-preview" />
-                    } @else {
-                    <i class="bi bi-image"></i>
-                    }
+                <div class="photo-editor">
 
-                    <p>
-                        {{ selectedPhotoName || 'Seleccione una imagen para la foto principal del usuario' }}
-                    </p>
+                    <!-- ================================================
+             COLUMNA IZQUIERDA: CARGA Y AJUSTE
+             - Aquí se edita una sola foto activa
+             ================================================ -->
+                    <div class="photo-editor__left">
+                        <div class="photo-editor__toolbar">
+                            <label class="btn-secondary file-upload-button"
+                                [class.disabled]="usuarioFotos.length >= maxPhotos">
+                                <i class="bi bi-upload"></i>
+                                <span>Seleccionar fotos</span>
+                                <input type="file" accept="image/*" multiple (change)="onPhotoSelected($event)"
+                                    [disabled]="usuarioFotos.length >= maxPhotos" hidden />
+                            </label>
 
-                    <label class="btn-secondary file-upload-button">
-                        <i class="bi bi-upload"></i>
-                        <span>Seleccionar foto</span>
-                        <input type="file" accept="image/*" (change)="onPhotoSelected($event)" hidden />
-                    </label>
+                            <button class="btn-secondary" type="button" (click)="resetPhotoAdjustments()"
+                                [disabled]="!activePhoto">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                                <span>Restablecer ajuste</span>
+                            </button>
+                        </div>
+
+                        <div class="photo-editor__file-name">
+                            {{ selectedPhotoName || 'No se ha seleccionado ninguna imagen.' }}
+                        </div>
+
+                        <div class="photo-editor__workspace">
+                            <div class="photo-editor__workspace-header">
+                                <h4>Ajuste de la foto</h4>
+                                <span>Arrastra la imagen dentro del marco</span>
+                            </div>
+
+                            <div class="photo-crop-stage" [ngStyle]="photoFrameStyles"
+                                (mousedown)="onPhotoEditorMouseDown($event)" (wheel)="onPhotoEditorWheel($event)">
+
+                                @if (photoPreviewUrl) {
+                                <img [src]="photoPreviewUrl" alt="Ajuste de foto" class="photo-crop-stage__image"
+                                    [ngStyle]="photoImageStyles" draggable="false" />
+
+                                <div class="photo-crop-stage__guide"></div>
+                                } @else {
+                                <div class="photo-crop-stage__placeholder">
+                                    <i class="bi bi-images"></i>
+                                    <span>Sube una o más imágenes para comenzar</span>
+                                </div>
+                                }
+                            </div>
+
+                            <small class="photo-editor__hint">
+                                Usa el zoom para acercar o alejar. También puedes mover la imagen arrastrándola con el
+                                mouse.
+                            </small>
+                        </div>
+
+                        @if (photoPreviewUrl) {
+                        <div class="photo-settings">
+                            <div class="photo-setting">
+                                <label for="photo_scale">
+                                    Zoom
+                                    <span class="photo-setting__value">{{ photoScale.toFixed(1) }}x</span>
+                                </label>
+
+                                <input id="photo_scale" type="range" min="1" max="2.5" step="0.1" [ngModel]="photoScale"
+                                    (ngModelChange)="onPhotoScaleChange($event)"
+                                    [ngModelOptions]="{ standalone: true }" />
+                            </div>
+                        </div>
+                        }
+                    </div>
+
+                    <!-- ================================================
+             COLUMNA DERECHA: VISTA PREVIA FINAL
+             - Aquí se muestran las fotos cargadas
+             - El bloque total sigue siendo 450x450
+             - Se puede hacer clic en una foto para editarla
+             ================================================ -->
+                    <div class="photo-editor__right">
+                        <div class="photo-editor__preview-header">
+                            <div class="photo-editor__preview-title">
+                                <h4>Vista previa final</h4>
+                                <span>{{ photoFrameSize }} x {{ photoFrameSize }} px</span>
+                            </div>
+
+                            <div class="photo-editor__counter">
+                                {{ usuarioFotos.length }} / {{ maxPhotos }} fotos cargadas
+                            </div>
+                        </div>
+
+                        <div class="photo-editor__preview-box">
+                            <div class="photo-frame photo-frame--grid" [ngStyle]="photoFrameStyles">
+                                @if (usuarioFotos.length > 0) {
+                                <button type="button" class="photo-frame__cell photo-frame__cell--clickable"
+                                    *ngFor="let foto of usuarioFotos; let i = index"
+                                    [class.photo-frame__cell--active]="i === activePhotoIndex" (click)="selectPhoto(i)">
+
+                                    <img [src]="foto.previewUrl" [alt]="'Vista previa ' + (i + 1)"
+                                        class="photo-frame__image-small"
+                                        [style.transform]="'translate(' + foto.offsetX + 'px, ' + foto.offsetY + 'px) scale(' + foto.scale + ')'" />
+
+                                    <span class="photo-frame__remove"
+                                        (click)="removePhoto(i); $event.stopPropagation()">
+                                        <i class="bi bi-x-lg"></i>
+                                    </span>
+                                </button>
+
+                                <div class="photo-frame__cell photo-frame__cell--empty"
+                                    *ngFor="let item of [1, 2, 3, 4].slice(usuarioFotos.length)">
+                                    <div class="photo-frame__placeholder-mini">
+                                        <i class="bi bi-image"></i>
+                                    </div>
+                                </div>
+                                } @else {
+                                <div class="photo-frame__placeholder">
+                                    <i class="bi bi-person-bounding-box"></i>
+                                    <span>Sin imágenes</span>
+                                </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-
             <!-- =====================================================
                  ACCIONES DEL MODAL
                  ===================================================== -->

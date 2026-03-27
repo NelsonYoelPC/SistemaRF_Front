@@ -29,7 +29,7 @@ export class UsuariosApiService {
         return this.http.get<UsuarioListadoApi[]>(this.apiUrl);
     }
 
-    create(formData: FormData): Observable<any> {
-        return this.http.post(this.apiUrl, formData);
+    create(payload: any): Observable<any> {
+        return this.http.post(this.apiUrl, payload);
     }
 }
