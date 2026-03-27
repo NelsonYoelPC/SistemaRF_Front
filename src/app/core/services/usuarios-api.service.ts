@@ -32,4 +32,28 @@ export class UsuariosApiService {
     create(payload: any): Observable<any> {
         return this.http.post(this.apiUrl, payload);
     }
+    /* =========================================================
+   OBTENER USUARIO POR ID
+   - Se usa para cargar datos completos en edición
+   ========================================================= */
+    getById(id: number): Observable<any> {
+        return this.http.get(`${this.apiUrl}/${id}`);
+    }
+
+    /* =========================================================
+       ACTUALIZAR USUARIO
+       - Se usa cuando el modal está en modo edición
+       ========================================================= */
+    update(id: number, payload: any): Observable<any> {
+        return this.http.put(`${this.apiUrl}/${id}`, payload);
+    }
+    /* =========================================================
+   ACTUALIZAR ESTADO DEL USUARIO
+   - Activa o desactiva el usuario en backend
+   ========================================================= */
+    updateEstado(id: number, estado: boolean): Observable<any> {
+        return this.http.patch(`${this.apiUrl}/${id}/estado`, {
+            estado: estado ? 1 : 0
+        });
+    }
 }

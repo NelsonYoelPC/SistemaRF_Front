@@ -42,7 +42,7 @@ interface UsuarioListado {
    ========================================================= */
 interface UsuarioFoto {
   name: string;
-  file: File;
+  file: File | null;
   previewUrl: string;
   adjustedBase64: string | null;
   scale: number;
@@ -253,6 +253,7 @@ export class UsuariosComponent implements OnInit {
       const emailControl = this.usuarioForm.get('email');
       const passwordControl = this.usuarioForm.get('password');
       const roleControl = this.usuarioForm.get('role_id');
+      this.updateAccessValidators(enabled);
 
       if (enabled) {
         usernameControl?.enable({ emitEvent: false });
@@ -287,7 +288,59 @@ export class UsuariosComponent implements OnInit {
       roleControl?.updateValueAndValidity({ emitEvent: false });
     });
   }
+  /* =========================================================
+     ACTUALIZAR VALIDADORES DE ACCESO
+     - Ajusta validaciones según modo nuevo o edición
+     ========================================================= */
+  private updateAccessValidators(enabled: boolean): void {
+    const usernameControl = this.usuarioForm.get('username');
+    const emailControl = this.usuarioForm.get('email');
+    const passwordControl = this.usuarioForm.get('password');
+    const roleControl = this.usuarioForm.get('role_id');
 
+    if (enabled) {
+      usernameControl?.enable({ emitEvent: false });
+      emailControl?.enable({ emitEvent: false });
+      passwordControl?.enable({ emitEvent: false });
+      roleControl?.enable({ emitEvent: false });
+
+      usernameControl?.setValidators([Validators.required, Validators.maxLength(50)]);
+      emailControl?.setValidators([Validators.required, Validators.email, Validators.maxLength(150)]);
+
+      /* =====================================================
+         CONTRASEÑA
+         - Nuevo registro: obligatoria
+         - Edición: opcional
+         ===================================================== */
+      if (this.isEditMode) {
+        passwordControl?.setValidators([Validators.minLength(8), Validators.maxLength(100)]);
+      } else {
+        passwordControl?.setValidators([Validators.required, Validators.minLength(8), Validators.maxLength(100)]);
+      }
+
+      roleControl?.setValidators([Validators.required]);
+    } else {
+      usernameControl?.reset('', { emitEvent: false });
+      emailControl?.reset('', { emitEvent: false });
+      passwordControl?.reset('', { emitEvent: false });
+      roleControl?.reset('', { emitEvent: false });
+
+      usernameControl?.clearValidators();
+      emailControl?.clearValidators();
+      passwordControl?.clearValidators();
+      roleControl?.clearValidators();
+
+      usernameControl?.disable({ emitEvent: false });
+      emailControl?.disable({ emitEvent: false });
+      passwordControl?.disable({ emitEvent: false });
+      roleControl?.disable({ emitEvent: false });
+    }
+
+    usernameControl?.updateValueAndValidity({ emitEvent: false });
+    emailControl?.updateValueAndValidity({ emitEvent: false });
+    passwordControl?.updateValueAndValidity({ emitEvent: false });
+    roleControl?.updateValueAndValidity({ emitEvent: false });
+  }
   /* =========================================================
      CARGAR LISTADO DE USUARIOS
      ========================================================= */
@@ -431,16 +484,22 @@ export class UsuariosComponent implements OnInit {
      CONTROL DEL MODAL
      ========================================================= */
   openUsuarioModal(): void {
+    this.isEditMode = false
+    this.editingUsuarioId = null;
     this.formSubmitted = false;
     this.saveError = '';
+    this.showPassword = false;
     this.resetForm();
     this.showUsuarioModal = true;
+    this.updateAccessValidators(this.usuarioForm.get('tiene_acceso')?.value === true);
   }
 
   closeUsuarioModal(): void {
     this.showUsuarioModal = false;
     this.formSubmitted = false;
     this.saveError = '';
+    this.isEditMode = false;
+    this.editingUsuarioId = null;
     this.resetForm();
   }
 
@@ -721,8 +780,8 @@ export class UsuariosComponent implements OnInit {
 
   /* =========================================================
      GUARDAR USUARIO
-     - Se envía JSON
-     - Las fotos se envían en base64 para guardar en BD
+     - Si está en modo edición: PUT
+     - Si está en modo nuevo: POST
      ========================================================= */
   async saveUsuario(): Promise<void> {
     this.formSubmitted = true;
@@ -742,9 +801,20 @@ export class UsuariosComponent implements OnInit {
         fotosPrincipalesBase64 = (
           await Promise.all(
             this.usuarioFotos.map(async (foto) => {
-              const base64 = await this.buildAdjustedPhotoBase64(foto);
-              foto.adjustedBase64 = base64;
-              return base64;
+              /* =========================================
+                 SI YA VIENE DE BD Y NO FUE REAJUSTADA,
+                 usa adjustedBase64 o el preview limpio
+                 ========================================= */
+              if (!foto.file && foto.adjustedBase64) {
+                return foto.adjustedBase64;
+              }
+
+              const base64Completo = await this.buildAdjustedPhotoBase64(foto);
+              if (!base64Completo) {
+                return null;
+              }
+
+              return this.extractBase64Content(base64Completo);
             })
           )
         ).filter((item): item is string => !!item);
@@ -765,23 +835,20 @@ export class UsuariosComponent implements OnInit {
       cargo: raw.cargo || '',
       estado: raw.estado ? 1 : 0,
       tiene_acceso: raw.tiene_acceso ? 1 : 0,
-
       username: raw.tiene_acceso ? raw.username : null,
       email: raw.tiene_acceso ? raw.email : null,
       password: raw.tiene_acceso ? raw.password : null,
       role_id: raw.tiene_acceso ? Number(raw.role_id) : null,
-
-      /* =====================================================
-         FOTOS EN BASE64
-         - Se guardan en la base de datos
-         - Cada foto se genera en formato final 450x450
-         ===================================================== */
       fotos_principales_base64: fotosPrincipalesBase64
     };
 
     this.savingUsuario = true;
 
-    this.usuariosApiService.create(payload).subscribe({
+    const request$ = this.isEditMode && this.editingUsuarioId
+      ? this.usuariosApiService.update(this.editingUsuarioId, payload)
+      : this.usuariosApiService.create(payload);
+
+    request$.subscribe({
       next: () => {
         this.savingUsuario = false;
         this.closeUsuarioModal();
@@ -791,11 +858,20 @@ export class UsuariosComponent implements OnInit {
         this.savingUsuario = false;
         this.saveError =
           error?.error?.message ||
-          'Ocurrió un error al registrar el usuario.';
+          (this.isEditMode
+            ? 'Ocurrió un error al actualizar el usuario.'
+            : 'Ocurrió un error al registrar el usuario.');
       }
     });
   }
-
+  /* =========================================================
+     EXTRAER SOLO EL CONTENIDO BASE64
+     - Quita el prefijo data:image/...;base64,
+     ========================================================= */
+  private extractBase64Content(value: string): string {
+    const parts = value.split(',', 2);
+    return parts.length === 2 ? parts[1] : value;
+  }
   /* =========================================================
      VALIDACIONES VISUALES
      ========================================================= */
@@ -816,16 +892,136 @@ export class UsuariosComponent implements OnInit {
   }
 
   /* =========================================================
-     ACCIONES DE TABLA
+     ACTIVAR / DESACTIVAR USUARIO
+     - Cambia el estado real en la BD
+     - Bloquea temporalmente el botón mientras procesa
      ========================================================= */
   toggleEstado(usuario: UsuarioListado): void {
-    usuario.estado_usuario = !usuario.estado_usuario;
-    this.applyFilters();
-  }
+    if (this.changingEstadoUsuarioId === usuario.usuario_id) {
+      return;
+    }
 
+    const nuevoEstado = !usuario.estado_usuario;
+    this.changingEstadoUsuarioId = usuario.usuario_id;
+    this.loadError = '';
+
+    this.usuariosApiService.updateEstado(usuario.usuario_id, nuevoEstado).subscribe({
+      next: () => {
+        usuario.estado_usuario = nuevoEstado;
+        this.applyFilters();
+        this.changingEstadoUsuarioId = null;
+      },
+      error: (error) => {
+        this.loadError =
+          error?.error?.message ||
+          'No se pudo actualizar el estado del usuario.';
+        this.changingEstadoUsuarioId = null;
+      }
+    });
+  }
+  /* =========================================================
+     CONTROL DE CAMBIO DE ESTADO
+     - Guarda el id del usuario que se está procesando
+     ========================================================= */
+  changingEstadoUsuarioId: number | null = null;
+  /* =========================================================
+   VISIBILIDAD DE CONTRASEÑA
+   - Permite mostrar u ocultar la contraseña escrita
+   ========================================================= */
+  showPassword = false;
+  /* =========================================================
+   MOSTRAR / OCULTAR CONTRASEÑA
+   ========================================================= */
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
+  /* =========================================================
+     EDITAR USUARIO
+     - Obtiene el detalle completo del usuario
+     - Carga formulario, acceso y fotos
+     ========================================================= */
   editarUsuario(usuario: UsuarioListado): void {
-    this.openUsuarioModal();
+    this.formSubmitted = false;
+    this.saveError = '';
+    this.resetForm();
+    this.isEditMode = true;
+    this.editingUsuarioId = usuario.usuario_id;
+    this.showUsuarioModal = true;
+
+    this.updateAccessValidators(this.usuarioForm.get('tiene_acceso')?.value === true);
+    this.usuariosApiService.getById(usuario.usuario_id).subscribe({
+      next: (response) => {
+        const data = response?.data;
+
+        if (!data) {
+          this.saveError = 'No se pudo cargar la información del usuario.';
+          return;
+        }
+
+        /* =============================================
+           CARGAR FORMULARIO
+           ============================================= */
+        this.usuarioForm.patchValue({
+          nombres: data.nombres ?? '',
+          apellido_paterno: data.apellido_paterno ?? '',
+          apellido_materno: data.apellido_materno ?? '',
+          tipo_documento: data.tipo_documento ?? '',
+          numero_documento: data.numero_documento ?? '',
+          telefono: data.telefono ?? '',
+          direccion: data.direccion ?? '',
+          cargo: data.cargo ?? '',
+          estado: Number(data.estado) === 1,
+          tiene_acceso: !!data.user
+        });
+
+        /* =============================================
+           CARGAR ACCESO AL SISTEMA
+           ============================================= */
+        if (data.user) {
+          this.usuarioForm.patchValue({
+            username: data.user.name ?? '',
+            email: data.user.email ?? '',
+            password: '',
+            role_id: data.user.role_id ?? ''
+          });
+
+          this.showAccesoSection = true;
+        }
+        /* =====================================================
+            REFRESCAR VALIDADORES
+           - En edición la contraseña debe ser opcional
+           ===================================================== */
+        this.updateAccessValidators(this.usuarioForm.get('tiene_acceso')?.value === true);
+        /* =============================================
+           CARGAR FOTOS
+           - Se reconstruye el src para poder mostrar
+           - Se asume que en BD guardas solo base64 limpio
+           ============================================= */
+        this.usuarioFotos = (data.fotos ?? []).map((foto: any) => ({
+          name: `Foto ${foto.orden}`,
+          file: null,
+          previewUrl: `data:image/jpeg;base64,${foto.base64}`,
+          adjustedBase64: foto.base64,
+          scale: 1,
+          offsetX: 0,
+          offsetY: 0
+        }));
+
+        this.activePhotoIndex = 0;
+      },
+      error: (error) => {
+        this.saveError =
+          error?.error?.message ||
+          'No se pudo cargar la información del usuario.';
+      }
+    });
   }
 
   verUsuario(usuario: UsuarioListado): void { }
+  /* =========================================================
+   MODO EDICIÓN
+   - Permite distinguir entre registrar y editar
+   ========================================================= */
+  isEditMode = false;
+  editingUsuarioId: number | null = null;
 }
