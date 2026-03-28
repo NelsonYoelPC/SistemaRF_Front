@@ -1,20 +1,43 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth-guard';
+import { guestGuard } from './core/guards/guest-guard';
 
 export const routes: Routes = [
     {
-        path: 'administracion/usuarios',
+        path: 'login',
+        canActivate: [guestGuard],
         loadComponent: () =>
-            import('./pages/usuarios/usuarios').then(m => m.UsuariosComponent)
+            import('./pages/login/login').then(m => m.LoginComponent)
     },
     {
-        path: 'administracion/roles',
+        path: '',
+        canActivate: [authGuard],
         loadComponent: () =>
-            import('./pages/roles/roles').then(m => m.RolesComponent)
+            import('./layout/app-shell/app-shell').then(m => m.AppShellComponent),
+        children: [
+            {
+                path: 'administracion/usuarios',
+                loadComponent: () =>
+                    import('./pages/usuarios/usuarios').then(m => m.UsuariosComponent)
+            },
+            {
+                path: 'administracion/roles',
+                loadComponent: () =>
+                    import('./pages/roles/roles').then(m => m.RolesComponent)
+            },
+            {
+                path: '',
+                redirectTo: 'administracion/usuarios',
+                pathMatch: 'full'
+            },
+            {
+                path: '**',
+                redirectTo: 'administracion/usuarios'
+            }
+        ]
+    },
+    {
+        path: '**',
+        redirectTo: 'login'
     }
-    //,
-    //{
-    //    path: '',
-    //    redirectTo: 'administracion/usuarios',
-    //    pathMatch: 'full'
-    //}
 ];

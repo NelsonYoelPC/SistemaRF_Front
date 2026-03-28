@@ -25,14 +25,26 @@
             <ul class="menu-list">
                 <li class="menu-item" *ngFor="let item of group.items; trackBy: trackByItem">
 
-                    <a *ngIf="!item.children?.length" class="menu-link" [routerLink]="item.route"
-                        routerLinkActive="menu-link-active" [routerLinkActiveOptions]="{ exact: true }">
+                    <!-- ITEM SIN HIJOS -->
+                    <a *ngIf="!item.children?.length && item.route !== '/logout'" class="menu-link"
+                        [routerLink]="item.route" routerLinkActive="menu-link-active"
+                        [routerLinkActiveOptions]="{ exact: true }">
                         <div class="menu-left">
                             <i [class]="item.icon"></i>
                             <span *ngIf="!collapsed">{{ item.label }}</span>
                         </div>
                     </a>
 
+                    <!-- ITEM LOGOUT -->
+                    <button *ngIf="!item.children?.length && item.route === '/logout'" type="button"
+                        class="menu-link menu-button" (click)="navigateTo(item.route)">
+                        <div class="menu-left">
+                            <i [class]="item.icon"></i>
+                            <span *ngIf="!collapsed">{{ item.label }}</span>
+                        </div>
+                    </button>
+
+                    <!-- ITEM CON HIJOS -->
                     <button *ngIf="item.children?.length" type="button" class="menu-link menu-button"
                         [class.menu-link-open]="isExpanded(item.id)"
                         [class.menu-link-parent-active]="hasActiveChild(item)" (click)="toggleSubmenu(item)">
@@ -45,6 +57,7 @@
                             [class.menu-chevron-rotated]="isExpanded(item.id)"></i>
                     </button>
 
+                    <!-- SUBMENÚ -->
                     <div *ngIf="item.children?.length && !collapsed" class="submenu-wrapper"
                         [class.submenu-wrapper-open]="isExpanded(item.id)">
                         <ul class="submenu-list">
@@ -65,12 +78,16 @@
 
     <div class="user-card" *ngIf="!collapsed">
         <div class="user-avatar">
-            {{ sessionService.user.fullName.charAt(0) }}
+            {{ (sessionService.user?.fullName || 'U').charAt(0) }}
         </div>
 
         <div class="user-info">
-            <div class="user-name">{{ sessionService.user.fullName }}</div>
-            <div class="user-role">{{ currentRoleLabel }}</div>
+            <div class="user-name">
+                {{ sessionService.user?.fullName || 'Usuario' }}
+            </div>
+            <div class="user-role">
+                {{ currentRoleLabel || 'Sin rol' }}
+            </div>
         </div>
     </div>
 </aside>

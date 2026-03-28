@@ -1,0 +1,119 @@
+<div class="login-page">
+    <!-- =========================================================
+         CONTENEDOR PRINCIPAL DEL LOGIN
+         - Se divide en 3 columnas
+         - Columna 1: imagen institucional
+         - Columna 2: imagen institucional / mensaje visual
+         - Columna 3: formulario de acceso
+         ========================================================= -->
+    <div class="login-layout">
+
+        <!-- =========================================================
+             COLUMNA 1
+             - Espacio visual para una imagen institucional
+             - Aquí irá una sola imagen
+             ========================================================= -->
+        <section class="login-panel login-panel--visual login-panel--visual-left">
+            <div class="visual-overlay"></div>
+
+            <img class="visual-image" src="img/login-seguridad.jpg" alt="Seguridad Ciudadana" />
+
+            <div class="visual-content">
+                <span class="visual-badge">Seguridad Ciudadana</span>
+                <h2>Monitoreo, control y gestión operativa en una sola plataforma</h2>
+                <p>
+                    Sistema orientado a la supervisión, trazabilidad y administración
+                    de procesos vinculados a la seguridad ciudadana.
+                </p>
+            </div>
+        </section>
+
+        <!-- =========================================================
+             COLUMNA 2
+             - Segundo espacio visual
+             - También preparado para usar una sola imagen
+             ========================================================= -->
+        <section class="login-panel login-panel--visual login-panel--visual-center">
+            <div class="visual-overlay"></div>
+
+            <img class="visual-image" src="img/login-seguridad.jpg" alt="Plataforma de Seguridad Ciudadana" />
+
+            <div class="visual-content visual-content--secondary">
+                <span class="visual-badge">Acceso Institucional</span>
+                <h2>Información centralizada para una respuesta más eficiente</h2>
+                <p>
+                    Accede al sistema con tu cuenta autorizada y visualiza únicamente
+                    los módulos correspondientes a tu rol.
+                </p>
+            </div>
+        </section>
+
+        <!-- =========================================================
+             COLUMNA 3
+             - Contiene exclusivamente el formulario de login
+             ========================================================= -->
+        <section class="login-panel login-panel--form">
+            <div class="login-card">
+
+                <!-- =====================================================
+                     CABECERA DEL FORMULARIO
+                     ===================================================== -->
+                <div class="login-card__header">
+                    <div class="login-logo">
+                        <img src="img/Logo11.png" alt="Logo Seguridad Ciudadana" />
+                    </div>
+
+                    <div class="login-heading">
+                        <span class="login-kicker">Acceso al sistema</span>
+                        <h1>Iniciar sesión</h1>
+                        <p>
+                            Ingresa tus credenciales para acceder al Sistema de
+                            Reconocimiento Facial.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- =====================================================
+                     FORMULARIO DE LOGIN
+                     ===================================================== -->
+                <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+                    <div class="form-group">
+                        <label for="name">Usuario</label>
+                        <input id="name" type="text" formControlName="name" placeholder="Ingresa tu usuario"
+                            autocomplete="username" />
+                        <small class="error" *ngIf="form.controls['name'].invalid && form.controls['name'].touched">
+                            El usuario es obligatorio.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Contraseña</label>
+                        <input id="password" type="password" formControlName="password"
+                            placeholder="Ingresa tu contraseña" autocomplete="current-password" />
+                        <small class="error"
+                            *ngIf="form.controls['password'].invalid && form.controls['password'].touched">
+                            La contraseña es obligatoria.
+                        </small>
+                    </div>
+
+                    <div class="alert-error" *ngIf="errorMessage">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>{{ errorMessage }}</span>
+                    </div>
+
+                    <button class="btn-login" type="submit" [disabled]="loading">
+                        <span *ngIf="!loading">Ingresar</span>
+                        <span *ngIf="loading">Validando...</span>
+                    </button>
+                </form>
+
+                <!-- =====================================================
+                     PIE INFORMATIVO
+                     ===================================================== -->
+                <div class="login-footer">
+                    <span>Acceso restringido a personal autorizado</span>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>

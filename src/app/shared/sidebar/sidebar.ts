@@ -35,11 +35,24 @@ export class SidebarComponent implements OnInit {
   }
 
   get currentRoleLabel(): string {
-    return this.roleLabels[this.sessionService.role];
+    const role = this.sessionService.role;
+
+    if (!role) {
+      return '';
+    }
+
+    return this.roleLabels[role] ?? '';
   }
 
   loadMenu(): void {
-    this.menuGroups = getSidebarByRole(this.sessionService.role);
+    const role = this.sessionService.role;
+
+    if (!role) {
+      this.menuGroups = [];
+      return;
+    }
+
+    this.menuGroups = getSidebarByRole(role);
   }
 
   toggleSidebar(): void {
@@ -85,7 +98,7 @@ export class SidebarComponent implements OnInit {
     }
 
     if (route === '/logout') {
-      this.sessionService.logout();
+      this.sessionService.clearSession();
       this.router.navigate(['/login']);
       return;
     }
@@ -94,6 +107,8 @@ export class SidebarComponent implements OnInit {
   }
 
   expandMenusByActiveRoute(): void {
+    this.openMenus.clear();
+
     for (const group of this.menuGroups) {
       for (const item of group.items) {
         if (item.children?.some((child) => this.isRouteActive(child.route))) {
