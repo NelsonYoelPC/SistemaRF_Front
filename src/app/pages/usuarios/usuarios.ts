@@ -1024,4 +1024,13 @@ export class UsuariosComponent implements OnInit {
    ========================================================= */
   isEditMode = false;
   editingUsuarioId: number | null = null;
+  /* =========================================================
+   MODAL DE DETALLE
+   - Muestra la información del usuario en solo lectura
+   ========================================================= */
+  showUsuarioDetailModal = false;
+  loadingUsuarioDetail = false;
+  usuarioDetalle: any = null;
+  detailError = '';
+
 }

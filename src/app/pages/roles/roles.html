@@ -1,0 +1,246 @@
+<div class="roles-page">
+    <!-- =========================================================
+         CABECERA + FILTROS
+         - Contenedor principal del módulo
+         ========================================================= -->
+    <div class="roles-panel">
+        <div class="roles-panel__header">
+            <div>
+                <h1>Gestión de roles</h1>
+                <p>Administración de roles y perfiles de acceso del sistema</p>
+            </div>
+
+            <button class="btn-primary" type="button" (click)="openRolModal()" aria-label="Registrar nuevo rol">
+                <i class="bi bi-plus-circle"></i>
+                <span>Nuevo rol</span>
+            </button>
+        </div>
+
+        <div class="roles-panel__filters">
+            <div class="filters-grid">
+                <div class="form-group form-group-search">
+                    <label for="buscar">Buscar</label>
+                    <input id="buscar" type="text" placeholder="Buscar por código o descripción"
+                        [(ngModel)]="searchTerm" (input)="applyFilters()" autocomplete="off" />
+                </div>
+
+                <div class="form-group">
+                    <label for="estado">Estado</label>
+                    <select id="estado" [(ngModel)]="estadoFiltro" (change)="applyFilters()">
+                        <option value="">Todos</option>
+                        <option value="1">Activo</option>
+                        <option value="0">Inactivo</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-secondary" type="button" (click)="clearFilters()" aria-label="Limpiar filtros">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span>Limpiar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         MENSAJE DE ERROR DE CARGA
+         ========================================================= -->
+    @if (loadError) {
+    <div class="table-card">
+        <div class="alert-error" role="alert">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>{{ loadError }}</span>
+        </div>
+    </div>
+    }
+
+    <!-- =========================================================
+         TABLA DE ROLES
+         ========================================================= -->
+    <div class="table-card">
+        <div class="table-header">
+            <h2>Listado de roles</h2>
+            <span class="table-count">Total: {{ totalRoles }}</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="roles-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Estado</th>
+                        <th>Fecha de registro</th>
+                        <th>Última actualización</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if (!loadingRoles && rolesPaginados.length > 0) {
+                    @for (rol of rolesPaginados; track rol.id) {
+                    <tr>
+                        <td>
+                            <span class="role-badge">{{ rol.codigo }}</span>
+                        </td>
+
+                        <td>
+                            @if (rol.descripcion) {
+                            {{ rol.descripcion }}
+                            } @else {
+                            <span class="text-muted">Sin descripción</span>
+                            }
+                        </td>
+
+                        <td>
+                            <span class="status-badge" [class.status-active]="rol.estado === 1"
+                                [class.status-inactive]="rol.estado === 0">
+                                {{ getEstadoLabel(rol.estado) }}
+                            </span>
+                        </td>
+
+                        <td>{{ rol.created_at }}</td>
+                        <td>{{ rol.updated_at }}</td>
+
+                        <td class="text-center">
+                            <div class="table-actions">
+                                <button class="action-btn action-btn-edit" type="button" (click)="openRolModal(rol)"
+                                    title="Editar rol" aria-label="Editar rol"
+                                    [disabled]="changingEstadoRolId === rol.id">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                <button class="action-btn"
+                                    [ngClass]="rol.estado === 1 ? 'action-btn-toggle-active' : 'action-btn-toggle-inactive'"
+                                    type="button" (click)="toggleEstado(rol)"
+                                    [disabled]="changingEstadoRolId === rol.id"
+                                    [attr.aria-label]="rol.estado === 1 ? 'Desactivar rol' : 'Activar rol'"
+                                    [attr.title]="changingEstadoRolId === rol.id ? 'Actualizando estado...' : (rol.estado === 1 ? 'Desactivar rol' : 'Activar rol')">
+                                    <i class="bi" [ngClass]="rol.estado === 1 ? 'bi-toggle-on' : 'bi-toggle-off'"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    }
+                    } @else if (!loadingRoles) {
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            No se encontraron roles registrados.
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- =========================================================
+             PAGINACIÓN
+             ========================================================= -->
+        @if (!loadingRoles && totalPages > 0) {
+        <footer class="paginacion" aria-label="Paginación del listado de roles">
+            <div class="paginacion__info">
+                <span class="paginacion__texto">
+                    Página <strong>{{ currentPage }}</strong> de <strong>{{ totalPages }}</strong>
+                </span>
+                <span class="paginacion__separador">•</span>
+                <span class="paginacion__texto">
+                    Total de registros: <strong>{{ totalRoles }}</strong>
+                </span>
+            </div>
+
+            <nav class="paginacion__navegacion" aria-label="Navegación entre páginas">
+                <button class="paginacion__boton paginacion__boton--control" type="button" (click)="previousPage()"
+                    [disabled]="currentPage === 1" aria-label="Ir a la página anterior">
+                    <i class="bi bi-chevron-left"></i>
+                    <span>Anterior</span>
+                </button>
+
+                <div class="paginacion__paginas">
+                    @for (page of pages; track page) {
+                    <button class="paginacion__numero" type="button"
+                        [class.paginacion__numero--activo]="page === currentPage"
+                        [attr.aria-current]="page === currentPage ? 'page' : null"
+                        [attr.aria-label]="page === currentPage ? 'Página actual ' + page : 'Ir a la página ' + page"
+                        (click)="goToPage(page)">
+                        {{ page }}
+                    </button>
+                    }
+                </div>
+
+                <button class="paginacion__boton paginacion__boton--control" type="button" (click)="nextPage()"
+                    [disabled]="currentPage === totalPages" aria-label="Ir a la página siguiente">
+                    <span>Siguiente</span>
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </nav>
+        </footer>
+        }
+    </div>
+</div>
+
+<!-- =========================================================
+     MODAL DE REGISTRO / EDICIÓN DE ROL
+     ========================================================= -->
+@if (showRolModal) {
+<div class="modal-backdrop" (click)="closeRolModal()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h2>{{ isEditMode ? 'Editar rol' : 'Nuevo rol' }}</h2>
+                <p>Registro y actualización de perfiles del sistema</p>
+            </div>
+
+            <button class="modal-close" type="button" (click)="closeRolModal()" aria-label="Cerrar ventana">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <form class="modal-body" (ngSubmit)="saveRol()">
+            @if (saveError) {
+            <div class="alert-error" role="alert">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span>{{ saveError }}</span>
+            </div>
+            }
+
+            <div class="modal-section">
+                <h3>Datos del rol</h3>
+
+                <div class="modal-grid">
+                    <div class="form-group form-group-full">
+                        <label for="codigo_modal">Código</label>
+                        <input id="codigo_modal" type="text" [(ngModel)]="rolForm.codigo" name="codigo"
+                            (input)="onCodigoInput()" placeholder="Ejemplo: ADMINISTRADOR" autocomplete="off" />
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label for="descripcion_modal">Descripción</label>
+                        <textarea id="descripcion_modal" [(ngModel)]="rolForm.descripcion" name="descripcion" rows="4"
+                            placeholder="Describe brevemente la finalidad del rol"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="estado_modal">Estado</label>
+                        <select id="estado_modal" [(ngModel)]="rolForm.estado" name="estado">
+                            <option [ngValue]="1">Activo</option>
+                            <option [ngValue]="0">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" type="button" (click)="closeRolModal()">
+                    Cancelar
+                </button>
+
+                <button class="btn-primary" type="submit" [disabled]="savingRol">
+                    <i class="bi bi-floppy"></i>
+                    <span>{{ savingRol ? 'Guardando...' : (isEditMode ? 'Actualizar rol' : 'Guardar rol') }}</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+}
