@@ -17,6 +17,8 @@ import { UserRole } from '../../core/types/user-role.type';
 export class LoginComponent {
   loading = false;
   errorMessage = '';
+  showPassword = false;
+  rememberMe = false;
   form: FormGroup;
 
   constructor(
@@ -28,6 +30,8 @@ export class LoginComponent {
       name: ['', [Validators.required]],
       password: ['', [Validators.required]]
     });
+
+    this.loadRememberedUser();
   }
 
   submit(): void {
@@ -39,12 +43,23 @@ export class LoginComponent {
     this.loading = true;
     this.errorMessage = '';
 
+    if (this.rememberMe) {
+      localStorage.setItem('rememberedUser', this.form.get('name')?.value ?? '');
+    } else {
+      localStorage.removeItem('rememberedUser');
+    }
+
     this.authService.login(this.form.getRawValue())
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (response) => {
           const role = response.data.user.role as UserRole;
-          const targetRoute = this.resolveLandingRoute(role);
+          let targetRoute = this.resolveLandingRoute(role);
+
+          if (targetRoute && !targetRoute.startsWith('/app')) {
+            targetRoute = `/app${targetRoute.startsWith('/') ? '' : '/'}${targetRoute}`;
+          }
+          
           this.router.navigateByUrl(targetRoute);
         },
         error: (error) => {
@@ -54,6 +69,27 @@ export class LoginComponent {
             'No se pudo iniciar sesión. Verifica tus credenciales.';
         }
       });
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
+
+  toggleRememberMe(): void {
+    this.rememberMe = !this.rememberMe;
+
+    if (!this.rememberMe) {
+      localStorage.removeItem('rememberedUser');
+    }
+  }
+
+  private loadRememberedUser(): void {
+    const rememberedUser = localStorage.getItem('rememberedUser');
+
+    if (rememberedUser) {
+      this.form.patchValue({ name: rememberedUser });
+      this.rememberMe = true;
+    }
   }
 
   private resolveLandingRoute(role: UserRole): string {
