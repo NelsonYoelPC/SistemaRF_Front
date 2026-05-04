@@ -43,6 +43,16 @@ export const routes: Routes = [
                     import('./pages/roles/roles').then(m => m.RolesComponent)
             },
             {
+                path: 'reconocimiento/personas-interes',
+                loadComponent: () =>
+                    import('./pages/reconocimiento/personas-interes/personas-interes').then(m => m.PersonasInteresComponent)
+            },
+            {
+                path: 'reconocimiento/monitoreo-analitico',
+                loadComponent: () =>
+                    import('./pages/reconocimiento/monitoreo-analitico/monitoreo-analitico').then(m => m.MonitoreoAnaliticoComponent)
+            },
+            {
                 path: '',
                 redirectTo: 'administracion/usuarios',
                 pathMatch: 'full'

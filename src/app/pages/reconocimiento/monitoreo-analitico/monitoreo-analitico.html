@@ -1,0 +1,215 @@
+<!-- Cabecera Premium (ADN Sistema) -->
+<div class="usuarios-panel mb-4 shadow-sm">
+    <div class="usuarios-panel__header">
+        <div>
+            <h1>Centro de Monitoreo Analítico</h1>
+        </div>
+        <div class="header-status-box">
+            <div class="status-badge-premium">
+                <span class="pulse-dot-green"></span>
+                SISTEMA ACTIVO
+            </div>
+            <div class="divider"></div>
+            <div class="camera-info">
+                <i class="bi bi-camera-video"></i>
+                <span>{{ totalCamaras }} NODOS</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="monitoreo-layout">
+    <!-- ÁREA CENTRAL: CÁMARAS -->
+    <div class="monitoreo-main">
+        <!-- Pestañas Estilizadas -->
+        <div class="custom-tabs mb-3">
+            @for (tab of tabs; track tab.id) {
+            <button class="tab-item" [ngClass]="{'is-active': activeTab === tab.id}" (click)="activeTab = tab.id">
+                VISTA {{ tab.id }}
+                <span class="count">{{ tab.camaras.length }}</span>
+            </button>
+            }
+        </div>
+
+        <!-- Grilla de Cámaras (6 por vista) -->
+        <div class="camera-grid">
+            @for (camara of getCamarasByActiveTab(); track camara.id) {
+            <div class="camera-card" [ngClass]="{'camera-alert': camara.enAlerta}">
+                <!-- Info de Cámara Superior -->
+                <div class="camera-card__overlay-top">
+                    <div class="cam-id">CAM-{{ camara.id | number:'2.0-0' }}</div>
+                    <div class="cam-location">{{ camara.zona }}</div>
+                </div>
+
+                <!-- Área de Video -->
+                <div class="video-stage">
+                    <!-- Esquineros Tácticos -->
+                    <div class="v-corner v-tl"></div>
+                    <div class="v-corner v-tr"></div>
+                    <div class="v-corner v-bl"></div>
+                    <div class="v-corner v-br"></div>
+
+                    <div class="video-ui-center">
+                        <i class="bi bi-broadcast"></i>
+                        <span>LIVE STREAM</span>
+                    </div>
+
+                        <!-- Overlay de Reconocimiento Mediapipe Vectorial -->
+                        @if (camara.enAlerta && camara.landmarks) {
+                            <div class="ia-detection-overlay animate__animated animate__fadeIn">
+                                <div class="facial-mesh">
+                                    <svg viewBox="0 0 100 100" class="mesh-svg">
+                                        <!-- Dibujamos los puntos reales de Mediapipe -->
+                                        @for (point of camara.landmarks; track $index) {
+                                            <circle [attr.cx]="point.x * 100" 
+                                                    [attr.cy]="point.y * 100" 
+                                                    r="0.8" 
+                                                    class="mesh-point" />
+                                        }
+                                        
+                                        <!-- Líneas de conexión inteligentes (simuladas entre puntos cercanos) -->
+                                        @for (point of camara.landmarks; track $index) {
+                                            @if ($index % 5 === 0 && camara.landmarks[$index + 1]) {
+                                                <line [attr.x1]="point.x * 100" [attr.y1]="point.y * 100"
+                                                      [attr.x2]="camara.landmarks[$index + 1].x * 100" 
+                                                      [attr.y2]="camara.landmarks[$index + 1].y * 100"
+                                                      class="mesh-line" />
+                                            }
+                                        }
+                                    </svg>
+                                </div>
+                                <div class="detection-tag">
+                                    <i class="bi bi-person-check-fill me-1"></i>
+                                    {{ camara.personaNombre }}
+                                </div>
+                            </div>
+                        }
+                </div>
+
+                <!-- Barra de Herramientas Inferior -->
+                <div class="camera-card__toolbar">
+                    <div class="stats">
+                        <div class="rec-dot"></div>
+                        <span class="fps">30 FPS</span>
+                        <span class="res">1080P</span>
+                    </div>
+                    <div class="actions">
+                        <button class="tool-btn" (click)="toggleFullscreen(camara)"><i class="bi bi-arrows-fullscreen"></i></button>
+                        <button class="tool-btn"><i class="bi bi-camera"></i></button>
+                        <button class="tool-btn"><i class="bi bi-gear-fill"></i></button>
+                    </div>
+                </div>
+            </div>
+            }
+        </div>
+    </div>
+
+    <!-- ÁREA DERECHA: OBJETIVOS -->
+    <div class="monitoreo-sidebar">
+        <div class="table-card sidebar-card h-100">
+            <div class="sidebar-header">
+                <h2>OBJETIVOS</h2>
+            </div>
+
+            <div class="target-list-scroll">
+                @for (persona of personasInteres; track persona.id) {
+                <div class="target-card-premium animate__animated animate__fadeInRight">
+                    <div class="target-card-premium__avatar">
+                        <img [src]="'data:image/png;base64,' + persona.foto_principal" alt="">
+                        <div class="scan-laser"></div>
+                    </div>
+                    <div class="target-card-premium__info">
+                        <div class="t-name">{{ persona.nombre_completo }}</div>
+                        <div class="t-meta">
+                            <span class="t-dni">DNI {{ persona.numero_documento }}</span>
+                            <span class="t-tag prio-alta">PRIORIDAD ALTA</span>
+                        </div>
+                        <div class="t-footer">
+                            <div class="t-stat">
+                                <label>FOTOS IA</label>
+                                <span>{{ persona.fotos_count }}/4</span>
+                            </div>
+                            <div class="t-stat">
+                                <label>ESTADO</label>
+                                <div class="status-searching-wrapper">
+                                    <div class="pulse-dot-mini"></div>
+                                    <span class="status-searching">RASTREANDO</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                } @empty {
+                <div class="empty-sidebar">
+                    <i class="bi bi-shield-exclamation"></i>
+                    <p>No se han configurado objetivos para vigilancia.</p>
+                    <button class="btn-setup" (click)="irAPersonasInteres()">
+                        IR A CONFIGURACIÓN
+                    </button>
+                </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE PANTALLA COMPLETA (MODO VIGILANCIA) -->
+@if (selectedCamara) {
+<div class="fullscreen-overlay animate__animated animate__fadeIn" (click)="closeFullscreen()">
+    <div class="fullscreen-content" (click)="$event.stopPropagation()">
+        <!-- Header HUD Expandido -->
+        <div class="fs-header">
+            <div class="fs-cam-info">
+                <span class="fs-badge">LIVE MONITOR</span>
+                <span class="fs-name">{{ selectedCamara.nombre }}</span>
+                <span class="fs-zone">[{{ selectedCamara.zona }}]</span>
+            </div>
+            <button class="fs-close" (click)="closeFullscreen()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <!-- Video Expandido -->
+        <div class="fs-video-stage">
+            <div class="fs-corner fs-top-left"></div>
+            <div class="fs-corner fs-top-right"></div>
+            <div class="fs-corner fs-bottom-left"></div>
+            <div class="fs-corner fs-bottom-right"></div>
+
+            <div class="video-ui-center">
+                <i class="bi bi-broadcast fs-icon"></i>
+                <span class="fs-live-text">STREAMING ALTA DEFINICIÓN</span>
+            </div>
+
+            <!-- IA Mesh si está en alerta -->
+            @if (selectedCamara.enAlerta && selectedCamara.landmarks) {
+                <div class="ia-detection-overlay">
+                    <div class="facial-mesh fs-mesh">
+                        <svg viewBox="0 0 100 100" class="mesh-svg">
+                            @for (point of selectedCamara.landmarks; track $index) {
+                                <circle [attr.cx]="point.x * 100" [attr.cy]="point.y * 100" r="0.8" class="mesh-point" />
+                            }
+                        </svg>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Footer HUD Expandido -->
+        <div class="fs-footer">
+            <div class="fs-stats">
+                <div class="rec-dot"></div>
+                <span>STATUS: RECORDING</span>
+                <span class="fs-sep">|</span>
+                <span>ENC: H.264</span>
+                <span class="fs-sep">|</span>
+                <span>BITRATE: 4.5 MBPS</span>
+            </div>
+            <div class="fs-actions">
+                <button class="fs-btn"><i class="bi bi-camera"></i> CAPTURAR</button>
+                <button class="fs-btn"><i class="bi bi-record-circle"></i> GRABAR</button>
+            </div>
+        </div>
+    </div>
+</div>
+}

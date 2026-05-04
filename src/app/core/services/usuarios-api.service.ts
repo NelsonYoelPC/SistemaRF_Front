@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface UsuarioListadoApi {
     usuario_id: number;
@@ -21,7 +22,7 @@ export interface UsuarioListadoApi {
     providedIn: 'root'
 })
 export class UsuariosApiService {
-    private readonly apiUrl = 'http://127.0.0.1:8000/api/usuarios';
+    private readonly apiUrl = `${environment.apiUrl}/usuarios`;
 
     constructor(private http: HttpClient) { }
 
@@ -48,14 +49,29 @@ export class UsuariosApiService {
         return this.http.put(`${this.apiUrl}/${id}`, payload);
     }
     /* =========================================================
-   ACTUALIZAR ESTADO DEL USUARIO
-   - Activa o desactiva el usuario en backend
-   ========================================================= */
+       ACTUALIZAR ESTADO DEL USUARIO
+       - Activa o desactiva el usuario en backend
+       ========================================================= */
     updateEstado(id: number, estado: boolean): Observable<any> {
         return this.http.patch(`${this.apiUrl}/${id}/estado`, {
             estado: estado ? 1 : 0
         });
     }
 
+    /* =========================================================
+       PERSONAS DE INTERÉS (WATCHLIST)
+       ========================================================= */
+    private readonly piUrl = `${environment.apiUrl}/personas-interes`;
 
+    getPersonasInteres(): Observable<any> {
+        return this.http.get(this.piUrl);
+    }
+
+    addPersonaInteres(payload: { usuario_id: number, prioridad: string, motivo?: string }): Observable<any> {
+        return this.http.post(this.piUrl, payload);
+    }
+
+    removePersonaInteres(usuarioId: number): Observable<any> {
+        return this.http.delete(`${this.piUrl}/${usuarioId}`);
+    }
 }

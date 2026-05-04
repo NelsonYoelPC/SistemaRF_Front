@@ -1,0 +1,186 @@
+<!-- Encabezado -->
+<div class="usuarios-panel animate__animated animate__fadeIn">
+    <div class="usuarios-panel__header">
+        <div>
+            <h1>Gestión de Vigilancia Activa</h1>
+            <p>Monitoreo y administración de protocolos de seguridad biométrica</p>
+        </div>
+    </div>
+</div>
+
+<div class="page-grid">
+    <!-- Columna Búsqueda -->
+    <div class="search-column">
+        <div class="table-card">
+            <div class="table-header">
+                <h2>Identificar Objetivo</h2>
+            </div>
+
+            <div class="form-group mb-4 search-group-animate">
+                <label class="x-small fw-bold text-muted mb-2 d-block"></label>
+                <div class="custom-input-group">
+                    <input type="text" class="form-control-custom" placeholder="Ingrese DNI..."
+                        [(ngModel)]="dniBusqueda" (keyup.enter)="buscarUsuario()">
+                    <button class="btn-primary-custom" (click)="buscarUsuario()">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+
+            @if (usuarioEncontrado) {
+            <div class="target-card animate__animated animate__fadeIn">
+                <div class="target-avatar mb-4">
+                    <img [src]="usuarioEncontrado.foto_principal ? 'data:image/png;base64,' + usuarioEncontrado.foto_principal : 'assets/images/no-avatar.png'"
+                        alt="">
+                </div>
+                <h3 class="target-name mb-2">{{ usuarioEncontrado.nombre_completo }}</h3>
+                <div class="role-badge mb-4">{{ usuarioEncontrado.cargo || 'Sin Cargo' }}</div>
+
+                <div class="mt-2">
+                    @if (!configuracionLista) {
+                    <button class="btn-teal-premium" (click)="abrirModalVigilancia()">
+                        <i class="bi bi-gear-fill me-2"></i>CONFIGURAR VIGILANCIA
+                    </button>
+                    } @else {
+                    <div class="config-ready-alert mb-3 animate__animated animate__pulse animate__infinite">
+                        <i class="bi bi-check-circle-fill me-2"></i> Configuración Lista
+                    </div>
+                    <button class="btn-teal-premium" style="background: #10b981;" (click)="agregarALista()">
+                        <i class="bi bi-play-circle-fill me-2"></i>INICIAR VIGILANCIA
+                    </button>
+                    <button class="btn-link-custom w-100 mt-3" (click)="abrirModalVigilancia()">
+                        Editar configuración previa
+                    </button>
+                    }
+                </div>
+            </div>
+            }
+        </div>
+    </div>
+
+    <!-- Columna Lista Activa -->
+    <div class="list-column">
+        <div class="table-card">
+            <div class="table-header">
+                <h2>Vigilancia en Curso</h2>
+            </div>
+
+            <div class="table-responsive">
+                <table class="usuarios-table">
+                    <thead>
+                        <tr>
+                            <th>Objetivo</th>
+                            <th>Documento</th>
+                            <th>Prioridad</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (persona of listaVigilancia; track persona.id) {
+                        <tr class="animate__animated animate__fadeIn">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-mini me-3">
+                                        <img [src]="'data:image/png;base64,' + persona.foto_principal" alt="">
+                                    </div>
+                                    <div class="d-flex flex-column">
+                                        <span class="fw-bold small text-truncate" style="max-width: 180px;">{{
+                                            persona.nombre_completo }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><code>{{ persona.numero_documento }}</code></td>
+                            <td><span class="prio-tag" [ngClass]="persona.prioridad.toLowerCase()">{{
+                                    persona.prioridad }}</span></td>
+                            <td>
+                                <span class="status-live-badge">
+                                    <i class="bi bi-dot pulse-red"></i> VIGILANDO
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <button class="action-btn-del" (click)="quitarDeLista(persona.id)"
+                                    title="Quitar de vigilancia">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL FINAL (DISEÑO LIMPIO Y FIJO) -->
+@if (mostrarModal) {
+<div class="modal-backdrop" (click)="cerrarModal()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h2>Configuración de Vigilancia</h2>
+                <p>Defina el protocolo y valide al solicitante</p>
+            </div>
+            <button class="modal-close" (click)="cerrarModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+
+        <div class="modal-body">
+            <div class="modal-section">
+                <h3>Protocolo de Vigilancia</h3>
+                <div class="modal-grid">
+                    <div class="form-group">
+                        <label>Prioridad de Alerta</label>
+                        <select [(ngModel)]="nuevaPrioridad">
+                            <option value="Baja">Baja</option>
+                            <option value="Media">Media</option>
+                            <option value="Alta">Alta</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>DNI del Solicitante</label>
+                        <div class="custom-input-group">
+                            <input type="text" [(ngModel)]="dniSolicitante" placeholder="DNI..."
+                                (keyup.enter)="buscarSolicitante()">
+                            <button class="btn-primary-custom" (click)="buscarSolicitante()">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label>Motivo de la Orden</label>
+                        <textarea rows="2" [(ngModel)]="nuevoMotivo"
+                            placeholder="Escriba la razón de la vigilancia..."></textarea>
+                    </div>
+
+                    @if (solicitanteEncontrado) {
+                    <div class="solicitante-confirmed-box animate__animated animate__fadeIn">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-mini me-3">
+                                <img [src]="solicitanteEncontrado.foto_principal ? 'data:image/png;base64,' + solicitanteEncontrado.foto_principal : 'assets/images/no-avatar.png'"
+                                    alt="">
+                            </div>
+                            <div>
+                                <div class="fw-bold small">{{ solicitanteEncontrado.nombre_completo }}</div>
+                                <div class="x-small text-muted">{{ solicitanteEncontrado.cargo }}</div>
+                            </div>
+                            <i class="bi bi-shield-check-fill ms-auto text-success fs-4"></i>
+                        </div>
+                    </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-secondary" (click)="cerrarModal()">Cancelar</button>
+            <button class="btn-primary" [disabled]="!solicitanteEncontrado || !nuevoMotivo"
+                (click)="confirmarConfiguracion()">
+                Validar Protocolo
+            </button>
+        </div>
+    </div>
+</div>
+}

@@ -171,21 +171,21 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
                         id: 'coincidencias-detectadas',
                         label: 'Coincidencias detectadas',
                         icon: 'bi bi-search',
-                        route: '/reconocimiento/coincidencias',
+                        route: '/app/reconocimiento/coincidencias',
                         roles: ['JEFE_SEGURIDAD']
                     },
                     {
                         id: 'coincidencias-recientes',
                         label: 'Coincidencias recientes',
                         icon: 'bi bi-search-heart',
-                        route: '/reconocimiento/coincidencias-recientes',
+                        route: '/app/reconocimiento/coincidencias-recientes',
                         roles: ['ANALISTA_SEGURIDAD']
                     },
                     {
                         id: 'verificacion-manual',
                         label: 'Verificación manual',
                         icon: 'bi bi-person-check',
-                        route: '/reconocimiento/verificacion-manual',
+                        route: '/app/reconocimiento/verificacion-manual',
                         roles: ['ANALISTA_SEGURIDAD']
                     },
                     {
@@ -206,14 +206,21 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
                         id: 'personas-interes',
                         label: 'Personas de interés',
                         icon: 'bi bi-people',
-                        route: '/reconocimiento/personas-interes',
+                        route: '/app/reconocimiento/personas-interes',
                         roles: ['ADMINISTRADOR', 'JEFE_SEGURIDAD', 'ANALISTA_SEGURIDAD']
+                    },
+                    {
+                        id: 'centro-monitoreo-analitico',
+                        label: 'Centro de Monitoreo Analítico',
+                        icon: 'bi bi-grid-3x3-gap',
+                        route: '/app/reconocimiento/monitoreo-analitico',
+                        roles: ['ADMINISTRADOR', 'JEFE_SEGURIDAD']
                     },
                     {
                         id: 'historial-detecciones',
                         label: 'Historial de detecciones',
                         icon: 'bi bi-clock-history',
-                        route: '/reconocimiento/historial-detecciones',
+                        route: '/app/reconocimiento/historial-detecciones',
                         roles: ['JEFE_SEGURIDAD', 'ANALISTA_SEGURIDAD']
                     },
                     {
@@ -367,7 +374,7 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
                         id: 'usuarios',
                         label: 'Usuarios',
                         icon: 'bi bi-person',
-                        route: '/administracion/usuarios',
+                        route: '/app/administracion/usuarios',
                         roles: ['ADMINISTRADOR']
                     },
                     {

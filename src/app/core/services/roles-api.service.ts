@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface RolListadoApi {
     id: number;
@@ -15,7 +16,7 @@ export interface RolListadoApi {
     providedIn: 'root'
 })
 export class RolesApiService {
-    private readonly apiUrl = 'http://127.0.0.1:8000/api/roles';
+    private readonly apiUrl = `${environment.apiUrl}/roles`;
 
     constructor(private http: HttpClient) { }
 
