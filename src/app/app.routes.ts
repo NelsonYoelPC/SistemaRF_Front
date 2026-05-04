@@ -1,12 +1,12 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
 import { guestGuard } from './core/guards/guest-guard';
-import { AuthLayoutComponent } from './layout/auth-layout/auth-layout';
 
 export const routes: Routes = [
     {
         path: '',
-        component: AuthLayoutComponent,
+        loadComponent: () =>
+            import('./layout/auth-layout/auth-layout').then(m => m.AuthLayoutComponent),
         canActivate: [guestGuard],
         children: [
             {
@@ -16,7 +16,7 @@ export const routes: Routes = [
             },
             {
                 path: '',
-                redirectTo: 'login',
+                redirectTo: '/login',
                 pathMatch: 'full'
             }
         ]
@@ -27,6 +27,11 @@ export const routes: Routes = [
         loadComponent: () =>
             import('./layout/app-shell/app-shell').then(m => m.AppShellComponent),
         children: [
+            {
+                path: 'dashboard',
+                redirectTo: 'administracion/usuarios',
+                pathMatch: 'full'
+            },
             {
                 path: 'administracion/usuarios',
                 loadComponent: () =>
@@ -42,6 +47,10 @@ export const routes: Routes = [
                 redirectTo: 'administracion/usuarios',
                 pathMatch: 'full'
             },
+            {
+                path: '**',
+                redirectTo: 'administracion/usuarios'
+            }
         ]
     },
     {

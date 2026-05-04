@@ -8,16 +8,21 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     const token = sessionService.token;
 
     const isApiRequest = req.url.startsWith(environment.apiUrl);
-    const isLoginRequest = req.url.endsWith('/login');
 
-    if (!token || !isApiRequest || isLoginRequest) {
+    if (!isApiRequest) {
         return next(req);
     }
 
+    const headers: Record<string, string> = {
+        Accept: 'application/json'
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const authReq = req.clone({
-        setHeaders: {
-            Authorization: `Bearer ${token}`
-        }
+        setHeaders: headers
     });
 
     return next(authReq);

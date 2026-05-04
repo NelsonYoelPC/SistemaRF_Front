@@ -374,7 +374,7 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
                         id: 'roles',
                         label: 'Roles',
                         icon: 'bi bi-person-gear',
-                        route: '/administracion/roles',
+                        route: '/app/administracion/roles',
                         roles: ['ADMINISTRADOR']
                     },
                     {

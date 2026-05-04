@@ -11,22 +11,5 @@ export const guestGuard: CanActivateFn = () => {
     return true;
   }
 
-  const menuGroups = getSidebarByRole(sessionService.role);
-
-  for (const group of menuGroups) {
-    for (const item of group.items) {
-      if (item.route && item.route !== '/logout') {
-        return router.createUrlTree([item.route]);
-      }
-
-      if (item.children?.length) {
-        const child = item.children.find((x) => !!x.route && x.route !== '/logout');
-        if (child?.route) {
-          return router.createUrlTree([child.route]);
-        }
-      }
-    }
-  }
-
-  return router.createUrlTree(['/']);
+  return router.createUrlTree(['/app']);
 };

@@ -60,6 +60,7 @@ export class LoginComponent {
             targetRoute = `/app${targetRoute.startsWith('/') ? '' : '/'}${targetRoute}`;
           }
           
+          console.log('Navegando a ruta de aterrizaje:', targetRoute);
           this.router.navigateByUrl(targetRoute);
         },
         error: (error) => {
