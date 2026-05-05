@@ -38,6 +38,10 @@
                 <!-- Info de Cámara Superior -->
                 <div class="camera-card__overlay-top">
                     <div class="cam-id">CAM-{{ camara.id | number:'2.0-0' }}</div>
+                    <div class="engine-badge" [ngClass]="camara.motor === 1 ? 'engine-server' : 'engine-local'">
+                        <i class="bi" [ngClass]="camara.motor === 1 ? 'bi-cpu-fill' : 'bi-gpu-card'"></i>
+                        {{ camara.motor === 1 ? 'AI MASIVO' : 'AI ESTÁNDAR' }}
+                    </div>
                     <div class="cam-location">{{ camara.zona }}</div>
                 </div>
 
@@ -49,34 +53,56 @@
                     <div class="v-corner v-bl"></div>
                     <div class="v-corner v-br"></div>
 
-                    <div class="video-ui-center">
+                    <div class="video-ui-center" *ngIf="!camara.onlineReal && !camara.landmarks?.[0]?.streamingImage">
                         <i class="bi bi-broadcast"></i>
                         <span>LIVE STREAM</span>
                     </div>
+
+                    <!-- VIDEO REAL (LOCAL) -->
+                    <video #localVideo [autoplay]="true" [muted]="true" playsinline 
+                           [style.display]="(camara.id === 1 && camara.onlineReal) ? 'block' : 'none'"
+                           style="width: 100%; height: 100%; object-fit: cover; position: absolute; z-index: 1;"></video>
+                    
+                    <!-- VIDEO RETRANSMITIDO (STREAMING) -->
+                    <img *ngIf="camara.id === 1 && !camara.onlineReal && camara.landmarks?.[0]?.streamingImage" 
+                         [src]="camara.landmarks?.[0]?.streamingImage" 
+                         style="width: 100%; height: 100%; object-fit: cover; position: absolute; z-index: 2;">
+
+                    <!-- CANVAS PARA PUNTOS (LOCAL O REMOTO) -->
+                    <canvas #outputCanvas [width]="640" [height]="480" 
+                            style="width: 100%; height: 100%; object-fit: cover; position: absolute; z-index: 10;"
+                            *ngIf="camara.id === 1 && (camara.onlineReal || camara.landmarks?.[0]?.streamingImage)"></canvas>
 
                         <!-- Overlay de Reconocimiento Mediapipe Vectorial -->
                         @if (camara.enAlerta && camara.landmarks) {
                             <div class="ia-detection-overlay animate__animated animate__fadeIn">
                                 <div class="facial-mesh">
-                                    <svg viewBox="0 0 100 100" class="mesh-svg">
-                                        <!-- Dibujamos los puntos reales de Mediapipe -->
-                                        @for (point of camara.landmarks; track $index) {
-                                            <circle [attr.cx]="point.x * 100" 
-                                                    [attr.cy]="point.y * 100" 
-                                                    r="0.8" 
-                                                    class="mesh-point" />
-                                        }
-                                        
-                                        <!-- Líneas de conexión inteligentes (simuladas entre puntos cercanos) -->
-                                        @for (point of camara.landmarks; track $index) {
-                                            @if ($index % 5 === 0 && camara.landmarks[$index + 1]) {
-                                                <line [attr.x1]="point.x * 100" [attr.y1]="point.y * 100"
-                                                      [attr.x2]="camara.landmarks[$index + 1].x * 100" 
-                                                      [attr.y2]="camara.landmarks[$index + 1].y * 100"
-                                                      class="mesh-line" />
+                                    <!-- MODO ESTÁNDAR: MALLA FACIAL COMPLETA -->
+                                    @if (camara.motor === 0) {
+                                        <svg viewBox="0 0 100 100" class="mesh-svg">
+                                            @for (point of camara.landmarks; track $index) {
+                                                <circle [attr.cx]="point.x * 100" [attr.cy]="point.y * 100" r="0.8" class="mesh-point" />
                                             }
-                                        }
-                                    </svg>
+                                            @for (point of camara.landmarks; track $index) {
+                                                @if ($index % 5 === 0 && camara.landmarks[$index + 1]) {
+                                                    <line [attr.x1]="point.x * 100" [attr.y1]="point.y * 100"
+                                                          [attr.x2]="camara.landmarks[$index + 1].x * 100" 
+                                                          [attr.y2]="camara.landmarks[$index + 1].y * 100"
+                                                          class="mesh-line" />
+                                                }
+                                            }
+                                        </svg>
+                                    }
+                                    <!-- MODO MASIVO: RECUADRO TÁCTICO (BOUNDING BOX) -->
+                                    @if (camara.motor === 1) {
+                                        <div class="bounding-box-ai">
+                                            <div class="bb-corner bb-tl"></div>
+                                            <div class="bb-corner bb-tr"></div>
+                                            <div class="bb-corner bb-bl"></div>
+                                            <div class="bb-corner bb-br"></div>
+                                            <div class="bb-scanner-line"></div>
+                                        </div>
+                                    }
                                 </div>
                                 <div class="detection-tag">
                                     <i class="bi bi-person-check-fill me-1"></i>
@@ -94,6 +120,18 @@
                         <span class="res">1080P</span>
                     </div>
                     <div class="actions">
+                        <button class="tool-btn" *ngIf="camara.id === 1 && !camara.onlineReal" 
+                                (click)="encenderCamaraReal(camara)" 
+                                title="Vincular Cámara Real"
+                                style="color: #2dd4bf;">
+                            <i class="bi bi-power"></i>
+                        </button>
+                        <button class="tool-btn" *ngIf="camara.id === 1 && camara.onlineReal" 
+                                (click)="cambiarCamara(camara)" 
+                                title="Cambiar Cámara (Frontal/Trasera)"
+                                style="color: #f59e0b;">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
                         <button class="tool-btn" (click)="toggleFullscreen(camara)"><i class="bi bi-arrows-fullscreen"></i></button>
                         <button class="tool-btn"><i class="bi bi-camera"></i></button>
                         <button class="tool-btn"><i class="bi bi-gear-fill"></i></button>
@@ -122,7 +160,12 @@
                         <div class="t-name">{{ persona.nombre_completo }}</div>
                         <div class="t-meta">
                             <span class="t-dni">DNI {{ persona.numero_documento }}</span>
-                            <span class="t-tag prio-alta">PRIORIDAD ALTA</span>
+                            <span class="t-engine clickable" 
+                                  [ngClass]="persona.motor === 1 ? 'masivo' : 'estandar'"
+                                  (click)="cambiarMotor(persona)"
+                                  title="Clic para cambiar modo">
+                                {{ persona.motor === 1 ? 'MASIVO' : 'ESTÁNDAR' }}
+                            </span>
                         </div>
                         <div class="t-footer">
                             <div class="t-stat">

@@ -67,8 +67,12 @@ export class UsuariosApiService {
         return this.http.get(this.piUrl);
     }
 
-    addPersonaInteres(payload: { usuario_id: number, prioridad: string, motivo?: string }): Observable<any> {
+    addPersonaInteres(payload: { usuario_id: number, prioridad: string, motivo?: string, motor?: number }): Observable<any> {
         return this.http.post(this.piUrl, payload);
+    }
+
+    updatePersonaInteres(id: number, payload: any): Observable<any> {
+        return this.http.put(`${this.piUrl}/${id}`, payload);
     }
 
     removePersonaInteres(usuarioId: number): Observable<any> {

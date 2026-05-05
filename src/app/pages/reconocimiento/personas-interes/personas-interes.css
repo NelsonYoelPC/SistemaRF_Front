@@ -130,6 +130,22 @@
     margin-bottom: 4px;
 }
 
+.status-live-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #fef2f2;
+    color: #ef4444;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.status-live-badge.paused {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
 .role-badge {
     display: inline-flex;
     font-size: 12px;
@@ -139,6 +155,15 @@
     border-radius: 999px;
     font-weight: 700;
     margin-bottom: 20px;
+}
+
+.engine-tag.clickable {
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.engine-tag.clickable:hover {
+    opacity: 0.8;
 }
 
 /* TABLA */
@@ -318,6 +343,167 @@
 .modal-body textarea:focus {
     border-color: #0ea5a4;
     box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.1);
+}
+
+/* SELECTOR DE PROTOCOLO MEJORADO */
+.protocol-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 5px;
+}
+
+.protocol-option {
+    border: 2px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #ffffff;
+    position: relative;
+}
+
+.protocol-option:hover {
+    border-color: #0ea5a4;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+}
+
+.protocol-option.active {
+    border-color: #0ea5a4;
+    background: rgba(14, 165, 164, 0.04);
+}
+
+.protocol-icon {
+    width: 48px;
+    height: 48px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0ea5a4;
+    font-size: 24px;
+    transition: all 0.3s;
+}
+
+.protocol-icon.server {
+    color: #f59e0b;
+}
+
+.protocol-option.active .protocol-icon {
+    background: #0ea5a4;
+    color: white;
+}
+
+.protocol-option.active .protocol-icon.server {
+    background: #f59e0b;
+}
+
+.protocol-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.protocol-info .title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.protocol-info .desc {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.check-mark {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: #0ea5a4;
+    font-size: 18px;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s;
+}
+
+.protocol-option.active .check-mark {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* TAGS DE MOTOR EN TABLA */
+.engine-tag {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.engine-tag.estandar {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.engine-tag.masivo {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.engine-tag.clickable {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.engine-tag.clickable:hover {
+    transform: scale(1.05);
+    filter: brightness(0.95);
+}
+
+/* SWITCH PERSONALIZADO */
+.custom-switch {
+    display: flex;
+    align-items: center;
+    min-height: 0;
+    padding-left: 0;
+}
+
+.custom-switch .form-check-input {
+    width: 40px;
+    height: 20px;
+    cursor: pointer;
+    margin-left: 0;
+    border-color: #cbd5e1;
+}
+
+.custom-switch .form-check-input:checked {
+    background-color: #10b981;
+    border-color: #10b981;
+}
+
+.action-btn-edit {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.action-btn-edit:hover {
+    background: #0ea5a4;
+    color: white;
 }
 
 .modal-footer {

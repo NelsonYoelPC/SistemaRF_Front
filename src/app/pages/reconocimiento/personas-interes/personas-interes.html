@@ -72,6 +72,7 @@
                             <th>Objetivo</th>
                             <th>Documento</th>
                             <th>Prioridad</th>
+                            <th class="text-center">Motor</th>
                             <th>Estado</th>
                             <th class="text-center">Acción</th>
                         </tr>
@@ -94,15 +95,31 @@
                             <td><span class="prio-tag" [ngClass]="persona.prioridad.toLowerCase()">{{
                                     persona.prioridad }}</span></td>
                             <td>
-                                <span class="status-live-badge">
-                                    <i class="bi bi-dot pulse-red"></i> VIGILANDO
-                                </span>
+                                <div class="engine-tag clickable" 
+                                     [ngClass]="persona.motor === 1 ? 'masivo' : 'estandar'"
+                                     (click)="cambiarMotor(persona)"
+                                     title="Clic para cambiar motor">
+                                    {{ persona.motor === 1 ? 'MASIVO' : 'ESTÁNDAR' }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="form-check form-switch custom-switch">
+                                    <input class="form-check-input" type="checkbox" 
+                                           [checked]="persona.activo" 
+                                           (change)="toggleEstado(persona)">
+                                    <span class="status-live-badge ms-2" [ngClass]="{'paused': !persona.activo}">
+                                        <i class="bi bi-dot" [ngClass]="persona.activo ? 'pulse-red' : 'text-muted'"></i> 
+                                        {{ persona.activo ? 'LIVE' : 'OFF' }}
+                                    </span>
+                                </div>
                             </td>
                             <td class="text-center">
-                                <button class="action-btn-del" (click)="quitarDeLista(persona.id)"
-                                    title="Quitar de vigilancia">
-                                    <i class="bi bi-trash3-fill"></i>
-                                </button>
+                                <div class="d-flex justify-content-center gap-2">
+                                    <button class="action-btn-del" (click)="quitarDeLista(persona.usuario_id)"
+                                        title="Eliminar registro">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         }
@@ -136,6 +153,32 @@
                             <option value="Media">Media</option>
                             <option value="Alta">Alta</option>
                         </select>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label>Protocolo de Inteligencia</label>
+                        <div class="protocol-grid">
+                            <div class="protocol-option" [ngClass]="{'active': nuevoMotor === 0}" (click)="nuevoMotor = 0">
+                                <div class="protocol-icon">
+                                    <i class="bi bi-person-bounding-box"></i>
+                                </div>
+                                <div class="protocol-info">
+                                    <span class="title">Estándar</span>
+                                    <span class="desc">Hasta 10 personas (Local)</span>
+                                </div>
+                                <div class="check-mark"><i class="bi bi-check-circle-fill"></i></div>
+                            </div>
+                            <div class="protocol-option" [ngClass]="{'active': nuevoMotor === 1}" (click)="nuevoMotor = 1">
+                                <div class="protocol-icon server">
+                                    <i class="bi bi-gpu-card"></i>
+                                </div>
+                                <div class="protocol-info">
+                                    <span class="title">Masivo</span>
+                                    <span class="desc">100-200 personas (Server)</span>
+                                </div>
+                                <div class="check-mark"><i class="bi bi-check-circle-fill"></i></div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-group">

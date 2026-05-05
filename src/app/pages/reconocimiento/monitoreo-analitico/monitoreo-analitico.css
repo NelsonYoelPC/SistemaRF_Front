@@ -277,7 +277,7 @@
     border-radius: 6px;
 }
 
-.t-tag {
+.t-engine {
     font-size: 9px;
     font-weight: 800;
     padding: 2px 8px;
@@ -286,10 +286,16 @@
     letter-spacing: 0.5px;
 }
 
-.t-tag.prio-alta {
-    background: #fee2e2;
-    color: #ef4444;
-    border: 1px solid #fecaca;
+.t-engine.estandar {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.t-engine.masivo {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
 }
 
 .t-footer {
@@ -426,6 +432,72 @@
     text-transform: uppercase;
 }
 
+/* BADGES DE MOTOR IA */
+.engine-badge {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.engine-local {
+    background: rgba(14, 165, 164, 0.15);
+    color: #2dd4bf;
+    border: 1px solid rgba(14, 165, 164, 0.3);
+}
+
+.engine-server {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.1);
+}
+
+/* ALERTA DE DENSIDAD (SIMULADA) */
+.density-alert-toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    border: 1px solid #f59e0b;
+    padding: 14px 24px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: white;
+    z-index: 10000;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    animation: slideUpToast 0.5s ease-out;
+}
+
+@keyframes slideUpToast {
+    from { transform: translate(-50%, 100%); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.density-alert-toast i {
+    color: #f59e0b;
+    font-size: 24px;
+}
+
+.density-alert-toast .btn-switch {
+    background: #f59e0b;
+    color: #0f172a;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
 /* VÍDEO STAGE */
 .video-stage {
     flex: 1;
@@ -434,6 +506,53 @@
     align-items: center;
     justify-content: center;
     background: radial-gradient(circle, #0f172a 0%, #020617 100%);
+}
+
+/* BOUNDING BOX AI (MODO MASIVO) */
+.bounding-box-ai {
+    position: absolute;
+    width: 65%;
+    height: 75%;
+    border: 1.5px solid rgba(245, 158, 11, 0.4);
+    background: rgba(245, 158, 11, 0.05);
+    box-shadow: inset 0 0 30px rgba(245, 158, 11, 0.1);
+    animation: bbPulse 2s infinite ease-in-out;
+}
+
+@keyframes bbPulse {
+    0% { border-color: rgba(245, 158, 11, 0.4); box-shadow: inset 0 0 30px rgba(245, 158, 11, 0.1); }
+    50% { border-color: rgba(245, 158, 11, 0.8); box-shadow: inset 0 0 50px rgba(245, 158, 11, 0.2); }
+    100% { border-color: rgba(245, 158, 11, 0.4); box-shadow: inset 0 0 30px rgba(245, 158, 11, 0.1); }
+}
+
+.bb-corner {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    border: 3px solid #f59e0b;
+}
+
+.bb-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+.bb-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+.bb-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+.bb-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+.bb-scanner-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #f59e0b, transparent);
+    box-shadow: 0 0 15px #f59e0b;
+    animation: bbScanner 2.5s infinite linear;
+}
+
+@keyframes bbScanner {
+    0% { top: 0; opacity: 0; }
+    5% { opacity: 1; }
+    95% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
 }
 
 /* MARCADORES DE ESQUINA (TACTICAL) */

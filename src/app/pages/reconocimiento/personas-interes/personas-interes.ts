@@ -22,6 +22,7 @@ export class PersonasInteresComponent implements OnInit {
   // Nuevos campos para el registro
   nuevoMotivo: string = '';
   nuevaPrioridad: string = 'Media';
+  nuevoMotor: number = 0; // 0: Estándar, 1: Masivo
 
   // Datos del Solicitante
   dniSolicitante: string = '';
@@ -100,13 +101,16 @@ export class PersonasInteresComponent implements OnInit {
         if (res.status) {
           // Mapeamos la respuesta para que coincida con el formato del componente
           this.listaVigilancia = res.data.map((item: any) => ({
-            id: item.usuario.id,
+            id: item.id, // ID de la tabla personas_interes para updates
+            usuario_id: item.usuario.id,
             nombre_completo: `${item.usuario.nombres} ${item.usuario.apellido_paterno} ${item.usuario.apellido_materno || ''}`.trim(),
             numero_documento: item.usuario.numero_documento,
             cargo: item.usuario.cargo,
             foto_principal: item.usuario.fotos.length > 0 ? item.usuario.fotos[0].base64 : null,
             fotos_count: item.usuario.fotos.length,
-            prioridad: item.prioridad
+            prioridad: item.prioridad,
+            motor: item.motor || 0,
+            activo: item.activo === 1
           }));
         }
       },
@@ -194,6 +198,7 @@ export class PersonasInteresComponent implements OnInit {
       usuario_id: this.usuarioEncontrado.id,
       prioridad: this.nuevaPrioridad,
       motivo: this.nuevoMotivo || 'Sin motivo especificado',
+      motor: this.nuevoMotor,
       creado_por: this.solicitanteEncontrado.id
     };
 
@@ -215,6 +220,43 @@ export class PersonasInteresComponent implements OnInit {
         this.mostrarError(err.error?.message || 'Error al agregar a vigilancia.');
       }
     });
+  }
+
+  cambiarMotor(persona: any) {
+    const nuevoValor = persona.motor === 0 ? 1 : 0;
+    this.usuariosService.updatePersonaInteres(persona.id, { motor: nuevoValor }).subscribe({
+      next: () => {
+        persona.motor = nuevoValor;
+        const msg = nuevoValor === 1 ? 'Motor Masivo activado' : 'Motor Estándar activado';
+        this.notificarExito(msg);
+      },
+      error: () => this.mostrarError('No se pudo cambiar el motor.')
+    });
+  }
+
+  toggleEstado(persona: any) {
+    const nuevoEstado = persona.activo ? 0 : 1;
+    this.usuariosService.updatePersonaInteres(persona.id, { activo: nuevoEstado }).subscribe({
+      next: () => {
+        persona.activo = !persona.activo;
+        this.notificarExito(persona.activo ? 'Vigilancia activada' : 'Vigilancia pausada');
+      },
+      error: () => {
+        persona.activo = !persona.activo; // Revertir visualmente si falla
+        this.mostrarError('No se pudo actualizar el estado.');
+      }
+    });
+  }
+
+  private notificarExito(msg: string) {
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 2000,
+      timerProgressBar: true
+    });
+    Toast.fire({ icon: 'success', title: msg });
   }
 
   quitarDeLista(id: number) {
