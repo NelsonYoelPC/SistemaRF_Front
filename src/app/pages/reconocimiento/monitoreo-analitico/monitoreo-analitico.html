@@ -74,11 +74,11 @@
                             *ngIf="camara.id === 1 && (camara.onlineReal || camara.landmarks?.[0]?.streamingImage)"></canvas>
 
                         <!-- Overlay de Reconocimiento Mediapipe Vectorial -->
-                        @if (camara.enAlerta && camara.landmarks) {
+                        @if (camara.enAlerta && (camara.landmarks || camara.motor === 1)) {
                             <div class="ia-detection-overlay animate__animated animate__fadeIn">
                                 <div class="facial-mesh">
                                     <!-- MODO ESTÁNDAR: MALLA FACIAL COMPLETA -->
-                                    @if (camara.motor === 0) {
+                                    @if (camara.motor === 0 && camara.landmarks) {
                                         <svg viewBox="0 0 100 100" class="mesh-svg">
                                             @for (point of camara.landmarks; track $index) {
                                                 <circle [attr.cx]="point.x * 100" [attr.cy]="point.y * 100" r="0.8" class="mesh-point" />
@@ -120,10 +120,10 @@
                         <span class="res">1080P</span>
                     </div>
                     <div class="actions">
-                        <button class="tool-btn" *ngIf="camara.id === 1 && !camara.onlineReal" 
-                                (click)="encenderCamaraReal(camara)" 
-                                title="Vincular Cámara Real"
-                                style="color: #2dd4bf;">
+                        <button class="tool-btn" *ngIf="camara.id === 1" 
+                                (click)="toggleCamara(camara)" 
+                                [title]="camara.onlineReal ? 'Desvincular Cámara' : 'Vincular Cámara Real'"
+                                [style.color]="camara.onlineReal ? '#ef4444' : '#2dd4bf'">
                             <i class="bi bi-power"></i>
                         </button>
                         <button class="tool-btn" *ngIf="camara.id === 1 && camara.onlineReal" 
@@ -151,8 +151,8 @@
 
             <div class="target-list-scroll">
                 @for (persona of personasInteres; track persona.id) {
-                <div class="target-card-premium animate__animated animate__fadeInRight">
-                    <div class="target-card-premium__avatar">
+                <div class="target-card-premium animate__animated animate__fadeInRight" [class.detected-card]="persona.estaEnEscena" [style.border]="persona.estaEnEscena ? '2px solid #ef4444' : ''" [style.background]="persona.estaEnEscena ? 'rgba(239, 68, 68, 0.1)' : ''">
+                    <div class="target-card-premium__avatar" [style.border-color]="persona.estaEnEscena ? '#ef4444' : ''">
                         <img [src]="'data:image/png;base64,' + persona.foto_principal" alt="">
                         <div class="scan-laser"></div>
                     </div>
@@ -175,8 +175,10 @@
                             <div class="t-stat">
                                 <label>ESTADO</label>
                                 <div class="status-searching-wrapper">
-                                    <div class="pulse-dot-mini"></div>
-                                    <span class="status-searching">RASTREANDO</span>
+                                    <div class="pulse-dot-mini" [style.background]="persona.estaEnEscena ? '#ef4444' : ''"></div>
+                                    <span class="status-searching" [style.color]="persona.estaEnEscena ? '#ef4444' : ''" [style.font-weight]="persona.estaEnEscena ? 'bold' : 'normal'">
+                                        {{ persona.estaEnEscena ? 'EN ESCENA' : 'RASTREANDO' }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -219,20 +221,61 @@
             <div class="fs-corner fs-bottom-left"></div>
             <div class="fs-corner fs-bottom-right"></div>
 
-            <div class="video-ui-center">
+            <div class="video-ui-center" *ngIf="!selectedCamara.onlineReal && !selectedCamara.landmarks?.[0]?.streamingImage">
                 <i class="bi bi-broadcast fs-icon"></i>
                 <span class="fs-live-text">STREAMING ALTA DEFINICIÓN</span>
             </div>
 
+            <!-- VIDEO REAL (LOCAL) CLONADO PARA FULLSCREEN -->
+            <video [autoplay]="true" [muted]="true" playsinline 
+                   [srcObject]="getStream()"
+                   *ngIf="selectedCamara.id === 1 && selectedCamara.onlineReal"
+                   style="width: 100%; height: 100%; object-fit: cover; position: absolute; z-index: 1;"></video>
+
+            <!-- CANVAS PARA PUNTOS (LOCAL O REMOTO) EN MODAL -->
+            <canvas #outputCanvas [width]="640" [height]="480" 
+                    style="width: 100%; height: 100%; object-fit: cover; position: absolute; z-index: 10; pointer-events: none;"
+                    *ngIf="selectedCamara.id === 1 && (selectedCamara.onlineReal || selectedCamara.landmarks?.[0]?.streamingImage)"></canvas>
+
+            <!-- VIDEO RETRANSMITIDO (STREAMING) -->
+            <img *ngIf="selectedCamara.id === 1 && !selectedCamara.onlineReal && selectedCamara.landmarks?.[0]?.streamingImage" 
+                 [src]="selectedCamara.landmarks?.[0]?.streamingImage" 
+                 style="width: 100%; height: 100%; object-fit: cover; position: absolute; z-index: 2; top: 0; left: 0;">
+
             <!-- IA Mesh si está en alerta -->
-            @if (selectedCamara.enAlerta && selectedCamara.landmarks) {
-                <div class="ia-detection-overlay">
+            @if (selectedCamara.enAlerta && (selectedCamara.landmarks || selectedCamara.motor === 1)) {
+                <div class="ia-detection-overlay animate__animated animate__fadeIn" style="z-index: 10;">
                     <div class="facial-mesh fs-mesh">
-                        <svg viewBox="0 0 100 100" class="mesh-svg">
-                            @for (point of selectedCamara.landmarks; track $index) {
-                                <circle [attr.cx]="point.x * 100" [attr.cy]="point.y * 100" r="0.8" class="mesh-point" />
-                            }
-                        </svg>
+                        <!-- MODO ESTÁNDAR: MALLA FACIAL COMPLETA -->
+                        @if (selectedCamara.motor === 0 && selectedCamara.landmarks) {
+                            <svg viewBox="0 0 100 100" class="mesh-svg">
+                                @for (point of selectedCamara.landmarks; track $index) {
+                                    <circle [attr.cx]="point.x * 100" [attr.cy]="point.y * 100" r="0.8" class="mesh-point" />
+                                }
+                                @for (point of selectedCamara.landmarks; track $index) {
+                                    @if ($index % 5 === 0 && selectedCamara.landmarks[$index + 1]) {
+                                        <line [attr.x1]="point.x * 100" [attr.y1]="point.y * 100"
+                                              [attr.x2]="selectedCamara.landmarks[$index + 1].x * 100" 
+                                              [attr.y2]="selectedCamara.landmarks[$index + 1].y * 100"
+                                              class="mesh-line" />
+                                    }
+                                }
+                            </svg>
+                        }
+                        <!-- MODO MASIVO: RECUADRO TÁCTICO (BOUNDING BOX) -->
+                        @if (selectedCamara.motor === 1) {
+                            <div class="bounding-box-ai">
+                                <div class="bb-corner bb-tl"></div>
+                                <div class="bb-corner bb-tr"></div>
+                                <div class="bb-corner bb-bl"></div>
+                                <div class="bb-corner bb-br"></div>
+                                <div class="bb-scanner-line"></div>
+                            </div>
+                        }
+                    </div>
+                    <div class="detection-tag" style="bottom: -50px; font-size: 14px; padding: 6px 16px;">
+                        <i class="bi bi-person-check-fill me-1"></i>
+                        {{ selectedCamara.personaNombre }}
                     </div>
                 </div>
             }
@@ -249,6 +292,18 @@
                 <span>BITRATE: 4.5 MBPS</span>
             </div>
             <div class="fs-actions">
+                <button class="fs-btn" *ngIf="selectedCamara.id === 1" 
+                        (click)="toggleCamara(selectedCamara)" 
+                        [title]="selectedCamara.onlineReal ? 'Desvincular Cámara' : 'Vincular Cámara Real'"
+                        [style.color]="selectedCamara.onlineReal ? '#ef4444' : '#2dd4bf'">
+                    <i class="bi bi-power"></i> {{ selectedCamara.onlineReal ? 'APAGAR' : 'PRENDER' }}
+                </button>
+                <button class="fs-btn" *ngIf="selectedCamara.id === 1 && selectedCamara.onlineReal" 
+                        (click)="cambiarCamara(selectedCamara)" 
+                        title="Cambiar Cámara (Frontal/Trasera)"
+                        style="color: #f59e0b;">
+                    <i class="bi bi-arrow-repeat"></i> REVERSA
+                </button>
                 <button class="fs-btn"><i class="bi bi-camera"></i> CAPTURAR</button>
                 <button class="fs-btn"><i class="bi bi-record-circle"></i> GRABAR</button>
             </div>

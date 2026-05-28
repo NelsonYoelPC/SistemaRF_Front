@@ -6,6 +6,7 @@ import {
   RolListadoApi,
   RolesApiService
 } from '../../core/services/roles-api.service';
+import Swal from 'sweetalert2';
 
 /* =========================================================
    INTERFAZ DEL LISTADO DE ROLES
@@ -116,6 +117,20 @@ export class RolesComponent implements OnInit {
      ========================================================= */
   private syncView(): void {
     this.cdr.detectChanges();
+  }
+
+  /* =========================================================
+     NOTIFICACIONES SWAL
+     ========================================================= */
+  private notificarExito(msg: string): void {
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 2000,
+      timerProgressBar: true
+    });
+    Toast.fire({ icon: 'success', title: msg });
   }
 
   /* =========================================================
@@ -349,6 +364,11 @@ export class RolesComponent implements OnInit {
       next: () => {
         this.closeRolModal();
         this.loadRoles();
+        Swal.fire(
+          'Éxito',
+          this.isEditMode ? 'Rol actualizado con éxito' : 'Rol registrado con éxito',
+          'success'
+        );
       },
       error: (error) => {
         console.error('Error al guardar rol:', error);
@@ -382,6 +402,7 @@ export class RolesComponent implements OnInit {
         rol.estado = nuevoEstado;
         this.applyFilters();
         this.changingEstadoRolId = null;
+        this.notificarExito(nuevoEstado === 1 ? 'Rol activado' : 'Rol desactivado');
         this.syncView();
       },
       error: (error) => {

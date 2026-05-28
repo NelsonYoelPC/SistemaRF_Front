@@ -63,6 +63,17 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
     this.selectedCamara = null;
   }
 
+  currentStream: MediaStream | null = null;
+
+  getStream(): MediaStream | null {
+    if (this.currentStream) return this.currentStream;
+    if (this.localVideo && this.localVideo.nativeElement) {
+      this.currentStream = this.localVideo.nativeElement.srcObject as MediaStream;
+      return this.currentStream;
+    }
+    return null;
+  }
+
   ngOnInit(): void {
     this.cargarPersonasInteres();
     this.generarCamarasSimuladas();
@@ -83,28 +94,92 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
         const data = event.data;
         const camara01 = this.tabs[0]?.camaras[0];
         
-        if (camara01 && !camara01.onlineReal && data instanceof Blob) {
-          const url = URL.createObjectURL(data);
-          
-          // 1. Mostrar Video (SIEMPRE - Flujo constante)
-          camara01.landmarks = [{ streamingImage: url }];
-          
-          // 2. Procesar IA (SOLO SI LA PC ESTÁ LIBRE)
-          if (!this.isProcessingFaceMesh) {
-            this.isProcessingFaceMesh = true;
-            const img = new Image();
-            img.src = url;
-            img.onload = async () => {
-              try {
-                await this.faceMesh.send({ image: img });
-              } finally {
-                this.isProcessingFaceMesh = false;
-                URL.revokeObjectURL(url);
+        // MODO 1: Procesamiento de Video (Blob)
+        if (data instanceof Blob) {
+          if (camara01 && !camara01.onlineReal) {
+            const url = URL.createObjectURL(data);
+            
+            // 1. Mostrar Video (SIEMPRE - Flujo constante)
+            camara01.landmarks = [{ streamingImage: url }];
+            
+            // 2. Procesar IA (SOLO SI LA PC ESTÁ LIBRE)
+            if (!this.isProcessingFaceMesh) {
+              this.isProcessingFaceMesh = true;
+              const img = new Image();
+              img.src = url;
+              img.onload = async () => {
+                try {
+                  await this.faceMesh.send({ image: img });
+                } finally {
+                  this.isProcessingFaceMesh = false;
+                  URL.revokeObjectURL(url);
+                }
+              };
+            } else {
+              // Si la PC está ocupada, no calculamos puntos pero liberamos la URL
+              setTimeout(() => URL.revokeObjectURL(url), 100);
+            }
+          }
+        }
+        // MODO 2: Procesamiento de Alertas Reales y Control (String JSON desde Python)
+        else if (typeof data === 'string') {
+          try {
+            const result = JSON.parse(data);
+            
+            // --- CONTROL DE CONCURRENCIA ---
+            if (result.action === 'lock_granted') {
+              this.procesarEncendidoCamara(result.camera_id);
+            } else if (result.action === 'lock_denied') {
+              Swal.fire('En Uso', 'Esta cámara ya está siendo transmitida por otro operador. Intente más tarde.', 'warning');
+            } else if (result.action === 'camera_status') {
+              // Actualizar UI para los demás
+              const camFound = this.tabs.flatMap(t => t.camaras).find(c => c.id === result.camera_id);
+              if (camFound) {
+                // (Opcional) Puedes crear la propiedad enUsoRemoto en la interfaz Camera
+                // camFound.enUsoRemoto = (result.status === 'in_use');
               }
-            };
-          } else {
-            // Si la PC está ocupada, no calculamos puntos pero liberamos la URL
-            setTimeout(() => URL.revokeObjectURL(url), 100);
+            }
+            // --- ALERTAS DE RECONOCIMIENTO ---
+            else if (result.status === 'success' && result.recognized && result.data && result.data.match_folder) {
+              const matchId = Number(result.data.match_folder);
+              const personaDetectada = this.personasInteres.find(p => p.id === matchId);
+              
+              if (personaDetectada && camara01) {
+                camara01.personaNombre = personaDetectada.nombre_completo;
+                camara01.enAlerta = true;
+                
+                // [NUEVO] UI Táctica: Marcar en el panel lateral
+                personaDetectada.estaEnEscena = true;
+                
+                // Mover al principio de la lista
+                const idx = this.personasInteres.indexOf(personaDetectada);
+                if (idx > 0) {
+                  this.personasInteres.splice(idx, 1);
+                  this.personasInteres.unshift(personaDetectada);
+                }
+
+                if (personaDetectada.timeoutEscena) clearTimeout(personaDetectada.timeoutEscena);
+                personaDetectada.timeoutEscena = setTimeout(() => {
+                  personaDetectada.estaEnEscena = false;
+                }, 5000); // 5 segundos de permanencia visual
+                
+                // [PRUEBA SOLICITADA] Lanzar alerta en el centro de la pantalla
+                if (!Swal.isVisible()) {
+                  Swal.fire({
+                    icon: 'error',
+                    title: '¡OBJETIVO DETECTADO!',
+                    html: `La cámara ha identificado a:<br><br><h3 style="color: red; margin:0;">${personaDetectada.nombre_completo}</h3><br>DNI: ${personaDetectada.numero_documento}`,
+                    timer: 3000,
+                    showConfirmButton: false,
+                    backdrop: `rgba(255,0,0,0.2)`
+                  });
+                }
+
+                setTimeout(() => camara01.enAlerta = false, 4000);
+              }
+            }
+          } catch (e) {
+            console.error('Error parseando JSON del WebSocket:', e);
           }
         }
       });
@@ -118,9 +193,10 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
   }
 
   iniciarAlertasSimuladas() {
-    setInterval(() => {
-      this.simularAlertaAleatoria();
-    }, 5000);
+    // Simulador apagado. Las alertas ahora son 100% reales mediante WebSocket JSON.
+    // setInterval(() => {
+    //   this.simularAlertaAleatoria();
+    // }, 5000);
   }
 
   setupFaceMesh() {
@@ -138,8 +214,41 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
     this.faceMesh.onResults((results: any) => this.handleFaceMeshResults(results));
   }
 
+  toggleCamara(camara: Camera) {
+    if (camara.onlineReal) {
+      this.apagarCamaraReal(camara);
+    } else {
+      this.encenderCamaraReal(camara);
+    }
+  }
+
   encenderCamaraReal(camara: Camera) {
     if (camara.id !== 1) return;
+    
+    // 1. Pedir permiso al Árbitro (Python)
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify({ action: 'lock_camera', camera_id: camara.id }));
+    } else {
+      Swal.fire('Error', 'No hay conexión con el servidor IA.', 'error');
+    }
+  }
+
+  apagarCamaraReal(camara: Camera) {
+    camara.onlineReal = false;
+    if (this.localVideo?.nativeElement.srcObject) {
+      const stream = this.localVideo.nativeElement.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      this.localVideo.nativeElement.srcObject = null;
+    }
+    // Avisar al servidor para liberar el candado
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify({ action: 'unlock_camera', camera_id: camara.id }));
+    }
+  }
+
+  procesarEncendidoCamara(camaraId: number) {
+    const camara = this.tabs.flatMap(t => t.camaras).find(c => c.id === camaraId);
+    if (!camara) return;
 
     const constraints = { 
       video: { 
@@ -149,12 +258,19 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
       } 
     };
 
-    navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+    const successHandler = (stream: MediaStream) => {
       camara.onlineReal = true;
-      if (this.localVideo) {
-        const video = this.localVideo.nativeElement;
-        video.srcObject = stream;
+      this.isProcessingFaceMesh = false;
+      this.currentStream = stream;
+      const video = this.localVideo.nativeElement;
+      video.srcObject = stream;
         
+        // Canvas compartido para asegurar que el celular (MediaPipe) no falle al leer el video
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = 640;
+        offCanvas.height = 480;
+        const offCtx = offCanvas.getContext('2d');
+
         video.onloadedmetadata = () => {
           video.play();
           streamLoop();
@@ -168,14 +284,10 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
           
           const now = Date.now();
           if (now - lastSend > 50 && this.socket.readyState === WebSocket.OPEN) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 640; // Calidad VGA
-            canvas.height = 480;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+            offCtx?.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
             
-            // Enviar como BLOB (mucho más rápido que Base64)
-            canvas.toBlob((blob) => {
+            // Enviar como BLOB
+            offCanvas.toBlob((blob) => {
               if (blob) this.socket.send(blob);
             }, 'image/jpeg', 0.8);
             
@@ -184,14 +296,43 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
           requestAnimationFrame(streamLoop);
         };
 
-        // BUCLE 2: DESHABILITADO EN CELULAR para ganar velocidad
-        // const faceMeshLoop = async () => { ... };
+        // BUCLE 2: Procesamiento Local de Malla Facial (SOLO MOTOR ESTÁNDAR)
+        const faceMeshLoop = async () => {
+          if (!camara.onlineReal) return;
+          
+          if (camara.motor === 1) {
+            requestAnimationFrame(faceMeshLoop);
+            return;
+          }
+          
+          if (!this.isProcessingFaceMesh) {
+            this.isProcessingFaceMesh = true;
+            try {
+              // Usar el canvas en lugar del video asegura compatibilidad total en móviles
+              offCtx?.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
+              await this.faceMesh.send({ image: offCanvas });
+            } catch (error) {
+              // Ignorar errores
+            } finally {
+              this.isProcessingFaceMesh = false;
+            }
+          }
+          requestAnimationFrame(faceMeshLoop);
+        };
 
         streamLoop();
-        // faceMeshLoop(); // No lo llamamos en el celular
-      }
-    }).catch(err => {
-      Swal.fire('Error', 'No se pudo abrir la cámara: ' + err.message, 'error');
+        faceMeshLoop(); // Activado para pintar la malla localmente
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints).then(successHandler).catch(err => {
+      // Fallback genérico para Webcams USB de PC que no soportan "facingMode"
+      console.warn("Fallo al abrir cámara con facingMode:", err.message);
+      navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } } })
+        .then(successHandler)
+        .catch(err2 => {
+          Swal.fire('Error', 'No se pudo abrir la cámara: ' + err2.message, 'error');
+          this.apagarCamaraReal(camara);
+        });
     });
   }
 
@@ -202,6 +343,7 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
       const stream = this.localVideo.nativeElement.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
     }
+    this.currentStream = null;
     // Reiniciamos con la nueva cámara
     this.encenderCamaraReal(camara);
   }
@@ -209,27 +351,28 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
   handleFaceMeshResults(results: any) {
     // 1. Lógica para Cámara Real (Canvas)
     if (this.outputCanvases && this.outputCanvases.length > 0) {
-      const canvasRef = this.outputCanvases.first;
-      const canvas = canvasRef.nativeElement;
-      const canvasCtx = canvas.getContext('2d')!;
-      
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-      canvasCtx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+      this.outputCanvases.forEach(canvasRef => {
+        const canvas = canvasRef.nativeElement;
+        const canvasCtx = canvas.getContext('2d')!;
+        
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
-      if (results.multiFaceLandmarks) {
-        canvasCtx.fillStyle = '#2dd4bf';
-        for (const landmarks of results.multiFaceLandmarks) {
-          for (const landmark of landmarks) {
-            const x = landmark.x * canvas.width;
-            const y = landmark.y * canvas.height;
-            canvasCtx.beginPath();
-            canvasCtx.arc(x, y, 1, 0, 2 * Math.PI);
-            canvasCtx.fill();
+        if (results.multiFaceLandmarks) {
+          canvasCtx.fillStyle = '#2dd4bf';
+          for (const landmarks of results.multiFaceLandmarks) {
+            for (const landmark of landmarks) {
+              const x = landmark.x * canvas.width;
+              const y = landmark.y * canvas.height;
+              canvasCtx.beginPath();
+              canvasCtx.arc(x, y, 1.5, 0, 2 * Math.PI);
+              canvasCtx.fill();
+            }
           }
         }
-      }
-      canvasCtx.restore();
+        canvasCtx.restore();
+      });
     }
 
     // 2. Lógica para Cámaras Simuladas (Landmarks)
@@ -253,7 +396,9 @@ export class MonitoreoAnaliticoComponent implements OnInit, OnDestroy {
             numero_documento: item.usuario.numero_documento,
             foto_principal: item.usuario.fotos.length > 0 ? item.usuario.fotos[0].base64 : null,
             fotos_count: item.usuario.fotos.length,
-            motor: item.motor || 0
+            motor: item.motor || 0,
+            estaEnEscena: false,
+            timeoutEscena: null
           }));
         }
       },

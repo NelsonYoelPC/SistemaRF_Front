@@ -7,3 +7,4 @@ export const environment = {
     aiStandardUrl: 'http://192.168.1.38:5000', // Servidor Python Local
     aiMasivoUrl: 'http://192.168.1.38:5001'   // Servidor Potente (Nube/AWS)
 };
+

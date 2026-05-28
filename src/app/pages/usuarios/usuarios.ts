@@ -16,6 +16,7 @@ import {
   UsuarioListadoApi,
   UsuariosApiService
 } from '../../core/services/usuarios-api.service';
+import Swal from 'sweetalert2';
 
 /* =========================================================
    INTERFAZ DEL LISTADO DE USUARIOS
@@ -853,6 +854,11 @@ export class UsuariosComponent implements OnInit {
         this.savingUsuario = false;
         this.closeUsuarioModal();
         this.loadUsuarios();
+        Swal.fire(
+          'Éxito',
+          this.isEditMode ? 'Usuario actualizado con éxito' : 'Usuario registrado con éxito',
+          'success'
+        );
       },
       error: (error) => {
         this.savingUsuario = false;
@@ -892,6 +898,20 @@ export class UsuariosComponent implements OnInit {
   }
 
   /* =========================================================
+     NOTIFICACIONES SWAL
+     ========================================================= */
+  private notificarExito(msg: string): void {
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 2000,
+      timerProgressBar: true
+    });
+    Toast.fire({ icon: 'success', title: msg });
+  }
+
+  /* =========================================================
      ACTIVAR / DESACTIVAR USUARIO
      - Cambia el estado real en la BD
      - Bloquea temporalmente el botón mientras procesa
@@ -910,6 +930,7 @@ export class UsuariosComponent implements OnInit {
         usuario.estado_usuario = nuevoEstado;
         this.applyFilters();
         this.changingEstadoUsuarioId = null;
+        this.notificarExito(nuevoEstado ? 'Usuario activado' : 'Usuario desactivado');
       },
       error: (error) => {
         this.loadError =
